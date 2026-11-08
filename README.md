@@ -13,14 +13,14 @@
 
 ---
 
-## 🔍 Overview
+## <img src="https://img.shields.io/badge/Section-Overview-007acc?style=flat-square&logo=readme&logoColor=white" alt="Overview"> Overview
 
 - **Core Highlights**: Universal syntax lexers, smart auto-completion, dual execution modes (Run & Debug with performance metrics), dynamic workspace management, and an IDE-dark minimalist.
 - **Supported Platforms**: Windows (`.exe`) and Linux (`Binary`).
 
 ---
 
-## 🛠️ Tech Stack & Dependencies
+## <img src="https://img.shields.io/badge/Section-Tech_Stack-6f42c1?style=flat-square&logo=codeforces&logoColor=white" alt="Tech Stack"> Tech Stack & Dependencies
 
 - **GUI Framework**: [PyQt6](https://www.riverbankcomputing.com/software/pyqt/) (High-performance native widget rendering)
 - **Editor Engine**: [QScintilla](https://www.riverbankcomputing.com/software/qscintilla/) (Advanced text editing, folding, and multi-lexer syntax highlighting)
@@ -29,7 +29,7 @@
 
 ---
 
-## 📂 Project Structure
+## <img src="https://img.shields.io/badge/Section-Project_Structure-28a745?style=flat-square&logo=git&logoColor=white" alt="Structure"> Project Structure
 
 ```text
 Anoterra/
@@ -50,7 +50,31 @@ Anoterra/
 
 ---
 
-## 🚀 Getting Started & Installation
+## <img src="https://img.shields.io/badge/Section-How_It_Works-17a2b8?style=flat-square&logo=cisco&logoColor=white" alt="How It Works"> How It Works
+
+**Anoterra** is a lightweight modern desktop-based Code Editor & IDE built using **Python** and **PyQt6/QScintilla**. 
+
+### How Does It Work?
+1. **Core Editing Engine**: Utilizes the high-performance *QScintilla* library providing real-time syntax highlighting, code folding, smart auto-completion, and responsive line numbering.
+2. **Asynchronous Execution & Runner**: When executing code (`F5` or `Ctrl + F5`), scripts run without blocking the main user interface. The asynchronous engine in `core/runner.py` executes external processes (Python, Node.js, C++ compiler) in the background while monitoring system resource usage (*CPU & RAM* via `psutil`).
+3. **Dynamic Workspace**: Provides left-panel project folder workspace management, multi-document file tab navigation, real-time HTML Live Preview, and an integrated terminal.
+
+---
+
+## <img src="https://img.shields.io/badge/Section-Supported_Devices-ffc107?style=flat-square&logo=windows&logoColor=white" alt="Supported Devices"> Supported Devices
+
+Anoterra is designed to be lightweight and optimized across various operating systems:
+* **Operating Systems**: 
+  * **Windows** (Windows 10 / 11 - 64-bit architecture)
+  * **Linux** (Major distributions such as Ubuntu, Debian, Fedora, Arch Linux)
+* **Hardware Requirements**:
+  * **RAM**: Minimum 512 MB (Extremely lightweight and memory-efficient).
+  * **Storage**: Approximately 50 MB - 100 MB free space.
+  * **Processor**: Standard dual-core processor (no dedicated GPU required).
+
+---
+
+## <img src="https://img.shields.io/badge/Section-Getting_Started-e83e8c?style=flat-square&logo=python&logoColor=white" alt="Getting Started"> Getting Started & Installation
 
 If you want to run, test, or contribute to this repository locally:
 
@@ -91,7 +115,7 @@ To compile Anoterra into a standalone application package without requiring a lo
 
 ---
 
-## ⌨️ Shortcuts
+## <img src="https://img.shields.io/badge/Section-Shortcuts-fd7e14?style=flat-square&logo=keyboard&logoColor=white" alt="Shortcuts"> Shortcuts
 
 Anoterra provides a comprehensive set of shortcuts to maximize your coding efficiency:
 
@@ -112,7 +136,7 @@ Anoterra provides a comprehensive set of shortcuts to maximize your coding effic
 
 ---
 
-## 🎨 Theme
+## <img src="https://img.shields.io/badge/Section-Theme-6610f2?style=flat-square&logo=vim&logoColor=white" alt="Theme"> Theme
 
 - **Editor & Panel Background**: `#1e1e1e` (Dark Slate Charcoal) and `#252526` for sidebars.
 - **Active Line Highlight**: `#2a2d2e` with caret color `#aeafad`.
@@ -128,6 +152,18 @@ Anoterra provides a comprehensive set of shortcuts to maximize your coding effic
 
 ---
 
-## 📄 License
+<div align="center">
 
-© 2026 - Anoterra. Developed and maintained by [@arraydeveloper](https://github.com/arraynothere).
+<br>
+
+<img src="https://user-images.githubusercontent.com/74038190/212284100-561aa473-3905-4a80-b561-0d28506553cc.gif" width="100%" alt="Animated Purple Banner">
+
+<br>
+
+<img src="https://capsule-render.vercel.app/api?type=waving&color=8a2be2&height=120&section=footer&text=Keep%20Coding%20&%20Stay%20Awesome!&fontSize=22&fontColor=ffffff&animation=fadeIn" width="100%" alt="Purple Wave Footer">
+
+<br>
+
+**© 2026 - Anoterra IDE. Developed by [@arraydeveloper](https://github.com/arraynothere).**
+
+</div>

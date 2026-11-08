@@ -2,13 +2,68 @@ import os
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
     QTabWidget, QTreeView, QTextEdit, QFileDialog, QMessageBox,
-    QToolBar, QLabel, QMenuBar, QMenu, QDialog, QTextBrowser
+    QToolBar, QLabel, QMenuBar, QMenu, QDialog, QTextBrowser,
+    QFormLayout, QComboBox, QSpinBox, QCheckBox, QDialogButtonBox
 )
-from PyQt6.QtGui import QAction, QFileSystemModel, QKeySequence
-from PyQt6.QtCore import Qt, QModelIndex
+from PyQt6.QtGui import QAction, QFileSystemModel, QKeySequence, QColor
+from PyQt6.QtCore import Qt, QModelIndex, QUrl
 from core.editor import AnoterraEditor
 from core.runner import CodeRunnerEngine
 from ui.themes import DARK_THEME_STYLESHEET
+
+class AnoterraSettingsDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Anoterra IDE - Settings & Preferences")
+        self.resize(500, 400)
+        self.setStyleSheet("background-color: #1e1e1e; color: #d4d4d4; font-family: 'Segoe UI';")
+        
+        layout = QVBoxLayout(self)
+        
+        form_layout = QFormLayout()
+        form_layout.setContentsMargins(15, 15, 15, 15)
+        form_layout.setSpacing(15)
+
+        # Theme Setting
+        self.theme_combo = QComboBox()
+        self.theme_combo.addItems(["Default (Dark)", "Light", "Darcula", "High Contrast"])
+        self.theme_combo.setStyleSheet("background-color: #252526; color: #d4d4d4; padding: 5px; border: 1px solid #3f3f46;")
+        form_layout.addRow(QLabel("Color Theme:"), self.theme_combo)
+
+        # Font Size Setting
+        self.font_size_spin = QSpinBox()
+        self.font_size_spin.setRange(8, 24)
+        self.font_size_spin.setValue(11)
+        self.font_size_spin.setStyleSheet("background-color: #252526; color: #d4d4d4; padding: 5px; border: 1px solid #3f3f46;")
+        form_layout.addRow(QLabel("Editor Font Size:"), self.font_size_spin)
+
+        # Tab Width Setting
+        self.tab_width_spin = QSpinBox()
+        self.tab_width_spin.setRange(2, 8)
+        self.tab_width_spin.setValue(4)
+        self.tab_width_spin.setStyleSheet("background-color: #252526; color: #d4d4d4; padding: 5px; border: 1px solid #3f3f46;")
+        form_layout.addRow(QLabel("Tab Width (Spaces):"), self.tab_width_spin)
+
+        # Auto Indent Checkbox
+        self.auto_indent_chk = QCheckBox("Enable Smart Auto-Indentation")
+        self.auto_indent_chk.setChecked(True)
+        self.auto_indent_chk.setStyleSheet("color: #d4d4d4;")
+        form_layout.addRow("", self.auto_indent_chk)
+
+        # Line Number Margin Checkbox
+        self.line_num_chk = QCheckBox("Show Line Number Margins")
+        self.line_num_chk.setChecked(True)
+        self.line_num_chk.setStyleSheet("color: #d4d4d4;")
+        form_layout.addRow("", self.line_num_chk)
+
+        layout.addLayout(form_layout)
+
+        # Buttons
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
+        button_box.setStyleSheet("QPushButton { background-color: #0e639c; color: white; padding: 6px 14px; border: none; } QPushButton:hover { background-color: #1177bb; }")
+        layout.addWidget(button_box)
 
 class AnoterraHelpDialog(QDialog):
     def __init__(self, parent=None):
@@ -21,26 +76,33 @@ class AnoterraHelpDialog(QDialog):
         browser = QTextBrowser()
         browser.setHtml("""
             <h2 style='color: #569cd6;'>Anoterra IDE (2026E)</h2>
-            <p>Welcome to Anoterra</p>
+            <p>Welcome to Anoterra - Advanced Cross-Platform Development Environment</p>
             
             <h3 style='color: #4ec9b0;'>Keyboard Shortcuts</h3>
             <ul>
                 <li><b>Ctrl + N</b>: Create a new file tab</li>
+                <li><b>Ctrl + Shift + N</b>: Create a new HTML file tab</li>
                 <li><b>Ctrl + O</b>: Open file</li>
                 <li><b>Ctrl + S</b>: Save active file</li>
                 <li><b>Ctrl + D</b>: Auto-format code block</li>
-                <li><b>F5</b>: Run script (Async Execution)</li>
+                <li><b>F5</b>: Run script or Render HTML Preview</li>
                 <li><b>Ctrl + F5</b>: Run & Debug (Performance Profiling)</li>
                 <li><b>Ctrl + F</b>: Find text in editor</li>
                 <li><b>Ctrl + H</b>: Find & Replace</li>
                 <li><b>Ctrl + Z</b>: Undo</li>
                 <li><b>Ctrl + Y / Ctrl + Shift + Z</b>: Redo</li>
             </ul>
-            
-            <h3 style='color: #4ec9b0;'>Supported Features</h3>
         """)
         browser.setStyleSheet("background-color: #252526; color: #cccccc; border: none; font-family: 'Segoe UI'; font-size: 11pt;")
         layout.addWidget(browser)
+
+class AnoterraHtmlPreview(QTextBrowser):
+    def __init__(self, source_editor, parent=None):
+        super().__init__(parent)
+        self.source_editor = source_editor
+        self.setOpenExternalLinks(True)
+        self.setStyleSheet("background-color: #ffffff; color: #000000; padding: 15px; font-family: 'Segoe UI';")
+
 
 class AnoterraMainWindow(QMainWindow):
     def __init__(self):
@@ -92,7 +154,7 @@ class AnoterraMainWindow(QMainWindow):
         terminal_header.setStyleSheet("background-color: #2d2d2d; color: #ffffff; padding: 4px;")
         t_layout = QHBoxLayout(terminal_header)
         t_layout.setContentsMargins(8, 2, 8, 2)
-        t_layout.addWidget(QLabel("CONSOLE OUTPUT & DEBUGGER LOGS"))
+        t_layout.addWidget(QLabel("CONSOLE"))
         bottom_layout.addWidget(terminal_header)
 
         self.console_output = QTextEdit()
@@ -115,6 +177,11 @@ class AnoterraMainWindow(QMainWindow):
         new_act.setShortcut(QKeySequence.StandardKey.New)
         new_act.triggered.connect(lambda: self._create_new_tab("Untitled.py"))
         file_menu.addAction(new_act)
+
+        new_html_act = QAction("New HTML File", self)
+        new_html_act.setShortcut(QKeySequence("Ctrl+Shift+N"))
+        new_html_act.triggered.connect(lambda: self._create_new_tab("Untitled.html"))
+        file_menu.addAction(new_html_act)
 
         open_file_act = QAction("Open File...", self)
         open_file_act.setShortcut(QKeySequence.StandardKey.Open)
@@ -171,7 +238,7 @@ class AnoterraMainWindow(QMainWindow):
         goto_menu.addAction(goto_line_act)
 
         run_menu = menubar.addMenu("&Execution")
-        run_act = QAction("Run Script", self)
+        run_act = QAction("Run Script / Preview HTML", self)
         run_act.setShortcut(QKeySequence("F5"))
         run_act.triggered.connect(lambda: self._execute_code("run"))
         run_menu.addAction(run_act)
@@ -180,6 +247,13 @@ class AnoterraMainWindow(QMainWindow):
         debug_act.setShortcut(QKeySequence("Ctrl+F5"))
         debug_act.triggered.connect(lambda: self._execute_code("debug"))
         run_menu.addAction(debug_act)
+
+        # Settings Menu (Added right before Help)
+        settings_menu = menubar.addMenu("&Settings")
+        preferences_act = QAction("Preferences & Themes...", self)
+        preferences_act.setShortcut(QKeySequence("Ctrl+,"))
+        preferences_act.triggered.connect(self._open_settings_dialog)
+        settings_menu.addAction(preferences_act)
 
         help_menu = menubar.addMenu("&Help")
         docs_act = QAction("Documentation & Shortcuts", self)
@@ -191,7 +265,7 @@ class AnoterraMainWindow(QMainWindow):
         self.toolbar.setMovable(False)
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar)
 
-        btn_run = QAction("Run", self)
+        btn_run = QAction("Run / Preview", self)
         btn_run.triggered.connect(lambda: self._execute_code("run"))
         self.toolbar.addAction(btn_run)
 
@@ -200,16 +274,32 @@ class AnoterraMainWindow(QMainWindow):
         self.toolbar.addAction(btn_debug)
 
         self.toolbar.addSeparator()
-        btn_format = QAction("Auto-Format (Ctrl+D)", self)
+        btn_format = QAction("Auto-Format", self)
         btn_format.triggered.connect(self._trigger_auto_format)
         self.toolbar.addAction(btn_format)
 
-        self.statusBar().showMessage("Anoterra IDE v2026.0E")
+        self.statusBar().showMessage("Anoterra IDE v2026.0E - Ready")
 
     def _create_new_tab(self, title, file_path=None, content=""):
         editor = AnoterraEditor(file_path=file_path)
+        if not content and os.path.splitext(title)[1].lower() in (".html", ".htm"):
+            content = (
+                "<!DOCTYPE html>\n"
+                "<html lang=\"en\">\n"
+                "<head>\n"
+                "    <meta charset=\"UTF-8\">\n"
+                "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
+                "    <title>My Anoterra Page</title>\n"
+                "</head>\n"
+                "<body>\n"
+                "    <h1>Hello from Anoterra!</h1>\n"
+                "    <p>Edit this page, then press F5 to preview it.</p>\n"
+                "</body>\n"
+                "</html>\n"
+            )
         if content:
             editor.setText(content)
+            editor.is_modified_flag = False
         idx = self.editor_tabs.addTab(editor, title)
         self.editor_tabs.setCurrentIndex(idx)
 
@@ -246,8 +336,8 @@ class AnoterraMainWindow(QMainWindow):
         if not isinstance(current_editor, AnoterraEditor):
             return
 
-        if not current_editor.file_path:
-            file_path, _ = QFileDialog.getSaveFileName(self, "Save File", self.current_workspace)
+        if not current_editor.file_path or "Untitled" in current_editor.file_path:
+            file_path, _ = QFileDialog.getSaveFileName(self, "Save File", self.current_workspace, "All Files (*.*);;Python Files (*.py);;HTML Files (*.html)")
             if not file_path:
                 return
             current_editor.file_path = file_path
@@ -317,15 +407,41 @@ class AnoterraMainWindow(QMainWindow):
         dialog = AnoterraHelpDialog(self)
         dialog.exec()
 
+    def _open_settings_dialog(self):
+        dialog = AnoterraSettingsDialog(self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.statusBar().showMessage("Settings updated successfully.", 3000)
+
     def _execute_code(self, mode="run"):
         current_editor = self.editor_tabs.currentWidget()
         if not isinstance(current_editor, AnoterraEditor):
             return
 
-        if not current_editor.file_path:
-            self._save_active_file()
-            if not current_editor.file_path:
+        tab_index = self.editor_tabs.indexOf(current_editor)
+        tab_title = self.editor_tabs.tabText(tab_index) if tab_index >= 0 else ""
+        source_name = current_editor.file_path or tab_title
+        if os.path.splitext(source_name)[1].lower() in (".html", ".htm"):
+            self.console_output.clear()
+            self.console_output.append(
+                f"[HTML Preview] Rendering preview for {source_name}.\n"
+            )
+            self._preview_html(current_editor, tab_title)
+            return
+
+        if not current_editor.file_path or "Untitled" in current_editor.file_path:
+            file_path, _ = QFileDialog.getSaveFileName(self, "Save Script to Run", self.current_workspace, "Python Files (*.py);;All Files (*.*)")
+            if not file_path:
                 return
+            current_editor.file_path = file_path
+            self.editor_tabs.setTabText(self.editor_tabs.currentIndex(), os.path.basename(file_path))
+
+        try:
+            with open(current_editor.file_path, "w", encoding="utf-8") as f:
+                f.write(current_editor.text())
+            current_editor.is_modified_flag = False
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Could not auto-save file for execution:\n{str(e)}")
+            return
 
         self.console_output.clear()
         self.console_output.append(f"[{'RUN' if mode=='run' else 'DEBUG'}] Starting execution for: {current_editor.file_path}\n")
@@ -334,6 +450,34 @@ class AnoterraMainWindow(QMainWindow):
         self.active_runner.output_signal.connect(self.console_output.insertPlainText)
         self.active_runner.finished_signal.connect(self._on_execution_finished)
         self.active_runner.start()
+
+    def _preview_html(self, editor, source_title=""):
+        source_index = self.editor_tabs.indexOf(editor)
+        if not source_title and source_index >= 0:
+            source_title = self.editor_tabs.tabText(source_index)
+        source_title = source_title or "Untitled.html"
+        preview_title = f"Preview: {source_title}"
+
+        preview = None
+        for index in range(self.editor_tabs.count()):
+            candidate = self.editor_tabs.widget(index)
+            if isinstance(candidate, AnoterraHtmlPreview) and candidate.source_editor is editor:
+                preview = candidate
+                self.editor_tabs.setTabText(index, preview_title)
+                break
+        if preview is None:
+            preview = AnoterraHtmlPreview(editor, self)
+            self.editor_tabs.addTab(preview, preview_title)
+
+        base_path = editor.file_path or self.current_workspace
+        base_dir = os.path.dirname(base_path) if editor.file_path else base_path
+        base_dir = os.path.abspath(base_dir or os.getcwd())
+        if not base_dir.endswith(os.sep):
+            base_dir += os.sep
+        preview.document().setBaseUrl(QUrl.fromLocalFile(base_dir))
+        preview.setHtml(editor.text())
+        self.editor_tabs.setCurrentWidget(preview)
+        self.statusBar().showMessage("HTML Preview rendered successfully.", 4000)
 
     def _on_execution_finished(self, exit_code, metrics):
         if metrics:

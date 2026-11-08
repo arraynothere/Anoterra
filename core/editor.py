@@ -37,7 +37,7 @@ class AnoterraEditor(QsciScintilla):
         self.setUnmatchedBraceBackgroundColor(QColor("#5a1d1d"))
         self.setUnmatchedBraceForegroundColor(QColor("#f44747"))
         self.SendScintilla(QsciScintilla.SCI_SETHSCROLLBAR, 1)
-        self.SendScintilla(QsciScintilla.SCI_VSCROLLBAR, 1)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
 
     def _configure_margins(self):
         self.setMarginType(0, QsciScintilla.MarginType.NumberMargin)

@@ -2,6 +2,7 @@ import subprocess
 import threading
 import sys
 import os
+import shutil
 import psutil
 from PyQt6.QtCore import QObject, pyqtSignal
 
@@ -28,14 +29,26 @@ class CodeRunnerEngine(QObject):
     def _execute_process(self):
         ext = os.path.splitext(self.file_path)[1].lower()
         cmd = []
+        is_windows = (os.name == "nt")
 
         if ext in ['.py', '.pyw']:
-            cmd = [sys.executable, self.file_path]
+            py_exe = sys.executable if os.path.exists(sys.executable) else (shutil.which("python") or "python")
+            cmd = [py_exe, self.file_path]
         elif ext in ['.js']:
-            cmd = ["node", self.file_path]
+            node_exe = shutil.which("node")
+            if not node_exe:
+                self.output_signal.emit("[Error] Node.js executable not found in system PATH.\n")
+                self.finished_signal.emit(-1, {})
+                return
+            cmd = [node_exe, self.file_path]
         elif ext in ['.cpp', '.cc']:
-            output_bin = self.file_path + (".exe" if os.name == "nt" else "")
-            compile_res = subprocess.run(["g++", self.file_path, "-o", output_bin], capture_output=True, text=True)
+            compiler = shutil.which("g++") or shutil.which("clang++")
+            if not compiler:
+                self.output_signal.emit("[Error] C++ compiler (g++/clang++) not found in system PATH.\n")
+                self.finished_signal.emit(-1, {})
+                return
+            output_bin = self.file_path + (".exe" if is_windows else "")
+            compile_res = subprocess.run([compiler, self.file_path, "-o", output_bin], capture_output=True, text=True)
             if compile_res.returncode != 0:
                 self.output_signal.emit(f"[Compilation Error]\n{compile_res.stderr}")
                 self.finished_signal.emit(compile_res.returncode, {})
@@ -50,16 +63,21 @@ class CodeRunnerEngine(QObject):
             self.output_signal.emit(f"[Debugger] Initializing profiling session for: {os.path.basename(self.file_path)}\n")
 
         try:
+            working_dir = os.path.dirname(self.file_path)
             self.process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
+                cwd=working_dir if working_dir else None,
+                creationflags=subprocess.CREATE_NO_WINDOW if is_windows else 0
             )
 
             pid = self.process.pid
-            p_obj = psutil.Process(pid)
+            try:
+                p_obj = psutil.Process(pid)
+            except Exception:
+                p_obj = None
 
             while self.process.poll() is None:
                 if not self._is_running:
@@ -80,7 +98,7 @@ class CodeRunnerEngine(QObject):
 
             exit_code = self.process.returncode
             metrics = {}
-            if self.run_mode == "debug":
+            if self.run_mode == "debug" and p_obj:
                 try:
                     metrics = {
                         "cpu_percent": p_obj.cpu_percent(interval=0.1),
