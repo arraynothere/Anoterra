@@ -148,7 +148,7 @@ Anoterra provides a comprehensive set of shortcuts to maximize your coding effic
   - Numbers / Constants: `#b5cea8` (Pale Sage Green)
   - Functions: `#dcdcaa` (Soft Yellow)
   - Types / Classes: `#4ec9b0` (Teal / Cyan)
-- **Status Bar**: `#007acc` (Professional Accent Blue)
+- **Status Bar**: `#007acc` (Professional Accent Blue).
 
 ---
 
