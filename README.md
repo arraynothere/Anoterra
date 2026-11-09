@@ -40,12 +40,27 @@ Anoterra/
 ├── build.spec          # PyInstaller packaging configuration
 ├── core/               # Core business logic and engine modules
 │   ├── __init__.py     # Core package initializer
+│   ├── analysis.py     # Code analysis utilities
 │   ├── editor.py       # Advanced QScintilla wrapper & auto-formatter
-│   └── runner.py       # Asynchronous execution & performance profiler
+│   ├── languages.py    # Language lexers and configurations
+│   ├── runner.py       # Asynchronous execution & performance profiler
+│   ├── settings.py     # Application configurations and preferences
+│   ├── theme_data.py   # Theme color palettes and configuration
+│   └── utils.py        # Helper utilities and common functions
+├── modules/            # Test suite modules and smoke testing
+│   ├── __init__.py     # Modules package initializer
+│   ├── test_app_smoke.py           # Application smoke tests
+│   ├── test_core_logic.py          # Core logic verification tests
+│   ├── test_editor_view_options.py # Editor view options unit tests
+│   ├── test_features.py            # Feature integration tests
+│   ├── test_html_preview.py        # HTML preview functional tests
+│   ├── test_ide_upgrades.py        # IDE enhancement tests
+│   └── test_theme.py               # Theme rendering unit tests
 └── ui/                 # User interface components and themes
     ├── __init__.py     # UI package initializer
     ├── main_window.py  # Main IDE window, menus, workspace tree, & terminal
-    └── themes.py       # Dark modern professional stylesheet
+    ├── themes.py       # Dark modern professional stylesheet
+    └── widgets.py      # Custom user interface widgets
 ```
 
 ---
@@ -152,6 +167,15 @@ Anoterra provides a comprehensive set of shortcuts to maximize your coding effic
 
 ---
 
+## <img src="https://img.shields.io/badge/Section-Contributors-blueviolet?style=flat-square&logo=github&logoColor=white" alt="Contributors"> Contributors & Project Team
+
+| Role | Name | Badge |
+| :--- | :--- | :--- |
+| **Developer** | `Array` | [![arraynothere](https://img.shields.io/badge/Owner-@arraynothere-blue?style=for-the-badge&logo=github)](https://github.com/arraynothere) |
+| **Contributor** | `Yokoto` | [![Yokoto](https://img.shields.io/badge/Contributor-FynixorStudio-purple?style=for-the-badge&logo=github)](https://github.com/FynixorStudio) |
+
+---
+
 <div align="center">
 
 <br>
@@ -160,7 +184,7 @@ Anoterra provides a comprehensive set of shortcuts to maximize your coding effic
 
 <br>
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=8a2be2&height=120&section=footer&text=Keep%20Coding%20&%20Stay%20Awesome!&fontSize=22&fontColor=ffffff&animation=fadeIn" width="100%" alt="Purple Wave Footer">
+<img src="https://capsule-render.vercel.app/api?type=waving&color=8a2be2&height=120&section=footer&text=%20%20&%20Stay%20Awesome!&fontSize=22&fontColor=ffffff&animation=fadeIn" width="100%" alt="Purple Wave Footer">
 
 <br>
 

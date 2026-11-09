@@ -1,7 +1,5 @@
-from core.editor import AnoterraEditor
-from core.runner import CodeRunnerEngine
+"""Anoterra core package.
 
-__all__ = [
-    'AnoterraEditor',
-    'CodeRunnerEngine'
-]
+Kept intentionally import-light: the Qt editor lives in ``core.editor`` and the
+process runner in ``core.runner``; everything else here is pure Python.
+"""

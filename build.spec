@@ -6,7 +6,7 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[('anoterra.ico', '.'), ('anoterra.png', '.')],
     hiddenimports=['PyQt6.Qsci', 'psutil'],
     hookspath=[],
     hooksconfig={},

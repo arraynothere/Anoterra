@@ -1,232 +1,80 @@
-DARK_THEME_STYLESHEET = """
-QMainWindow {
-    background-color: #1e1e1e;
-    color: #d4d4d4;
-}
-QTabWidget::pane {
-    border-top: 1px solid #333333;
-    background: #1e1e1e;
-}
-QTabBar::tab {
-    background: #2d2d2d;
-    color: #969696;
-    padding: 8px 16px;
-    border-right: 1px solid #1e1e1e;
-    border-bottom: 2px solid transparent;
-    font-family: 'Segoe UI', sans-serif;
-    font-size: 10pt;
-}
-QTabBar::tab:selected {
-    background: #1e1e1e;
-    color: #ffffff;
-    border-bottom: 2px solid #007acc;
-}
-QTabBar::tab:hover {
-    background: #383838;
-    color: #cccccc;
-}
-QTreeView, QListView {
-    background-color: #252526;
-    color: #cccccc;
-    border: none;
-    font-size: 10pt;
-}
-QTreeView::item:hover, QListView::item:hover {
-    background-color: #2a2d2e;
-}
-QTreeView::item:selected, QListView::item:selected {
-    background-color: #37373d;
-    color: #ffffff;
-}
-QTextEdit, QPlainTextEdit {
-    background-color: #1e1e1e;
-    color: #d4d4d4;
-    border: none;
-    font-family: 'Cascadia Code', 'Consolas', monospace;
-    font-size: 11pt;
-}
-QSplitter::handle {
-    background-color: #333333;
-}
-QMenuBar {
-    background-color: #333333;
-    color: #f1f1f1;
-    font-size: 10pt;
-}
-QMenuBar::item:selected {
-    background-color: #007acc;
-}
-QMenu {
-    background-color: #252526;
-    color: #cccccc;
-    border: 1px solid #333333;
-}
-QMenu::item:selected {
-    background-color: #007acc;
-    color: #ffffff;
-}
-QStatusBar {
-    background-color: #007acc;
-    color: #ffffff;
-    font-weight: bold;
-    font-size: 9pt;
-}
-"""
+"""Qt stylesheets generated from the palettes in ``core.theme_data``."""
+from string import Template
 
-LIGHT_THEME_STYLESHEET = """
-QMainWindow {
-    background-color: #f3f3f3;
-    color: #333333;
-}
-QTabWidget::pane {
-    border-top: 1px solid #dcdcdc;
-    background: #ffffff;
-}
-QTabBar::tab {
-    background: #e1e1e1;
-    color: #666666;
-    padding: 8px 16px;
-    border-right: 1px solid #cccccc;
-    border-bottom: 2px solid transparent;
-    font-family: 'Segoe UI', sans-serif;
-    font-size: 10pt;
-}
-QTabBar::tab:selected {
-    background: #ffffff;
-    color: #000000;
-    border-bottom: 2px solid #007acc;
-}
-QTabBar::tab:hover {
-    background: #e8e8e8;
-    color: #333333;
-}
-QTreeView, QListView {
-    background-color: #f9f9f9;
-    color: #333333;
-    border: none;
-    font-size: 10pt;
-}
-QTreeView::item:hover, QListView::item:hover {
-    background-color: #ececec;
-}
-QTreeView::item:selected, QListView::item:selected {
-    background-color: #007acc;
-    color: #ffffff;
-}
-QTextEdit, QPlainTextEdit {
-    background-color: #ffffff;
-    color: #000000;
-    border: none;
-    font-family: 'Cascadia Code', 'Consolas', monospace;
-    font-size: 11pt;
-}
-QSplitter::handle {
-    background-color: #dcdcdc;
-}
-QMenuBar {
-    background-color: #e1e1e1;
-    color: #333333;
-    font-size: 10pt;
-}
-QMenuBar::item:selected {
-    background-color: #007acc;
-    color: #ffffff;
-}
-QMenu {
-    background-color: #f3f3f3;
-    color: #333333;
-    border: 1px solid #cccccc;
-}
-QMenu::item:selected {
-    background-color: #007acc;
-    color: #ffffff;
-}
-QStatusBar {
-    background-color: #007acc;
-    color: #ffffff;
-    font-weight: bold;
-    font-size: 9pt;
-}
-"""
+from core.theme_data import DEFAULT_THEME, THEMES, get_theme, theme_names
 
-DARCULA_THEME_STYLESHEET = """
-QMainWindow {
-    background-color: #2b2b2b;
-    color: #a9b7c6;
-}
-QTabWidget::pane {
-    border-top: 1px solid #323232;
-    background: #2b2b2b;
-}
-QTabBar::tab {
-    background: #3c3f41;
-    color: #909090;
-    padding: 8px 16px;
-    border-right: 1px solid #2b2b2b;
-    border-bottom: 2px solid transparent;
-    font-family: 'Segoe UI', sans-serif;
-    font-size: 10pt;
-}
-QTabBar::tab:selected {
-    background: #2b2b2b;
-    color: #ffc66d;
-    border-bottom: 2px solid #4e82b4;
-}
-QTabBar::tab:hover {
-    background: #323232;
-    color: #cbccc6;
-}
-QTreeView, QListView {
-    background-color: #313335;
-    color: #bbbbbb;
-    border: none;
-    font-size: 10pt;
-}
-QTreeView::item:hover, QListView::item:hover {
-    background-color: #2f3235;
-}
-QTreeView::item:selected, QListView::item:selected {
-    background-color: #214283;
-    color: #ffffff;
-}
-QTextEdit, QPlainTextEdit {
-    background-color: #2b2b2b;
-    color: #a9b7c6;
-    border: none;
-    font-family: 'Cascadia Code', 'Consolas', monospace;
-    font-size: 11pt;
-}
-QSplitter::handle {
-    background-color: #323232;
-}
-QMenuBar {
-    background-color: #3c3f41;
-    color: #bbbbbb;
-    font-size: 10pt;
-}
-QMenuBar::item:selected {
-    background-color: #214283;
-    color: #ffffff;
-}
-QMenu {
-    background-color: #3c3f41;
-    color: #bbbbbb;
-    border: 1px solid #323232;
-}
-QMenu::item:selected {
-    background-color: #214283;
-    color: #ffffff;
-}
-QStatusBar {
-    background-color: #3c3f41;
-    color: #a9b7c6;
-    font-weight: bold;
-    font-size: 9pt;
-}
-"""
+_QSS = Template(r"""
+QMainWindow, QWidget { background: $bg; color: $fg; font-family: 'Segoe UI', 'Inter', 'Noto Sans', sans-serif; font-size: 10pt; }
+QDialog { background: $bg; }
+QMenuBar, QToolBar { background: $panel; color: $fg; border: 0; spacing: 6px; padding: 5px; }
+QMenuBar::item, QToolButton { padding: 6px 10px; border-radius: 5px; background: transparent; }
+QMenuBar::item:selected, QToolButton:hover { background: $hover; }
+QToolButton:checked { background: $accent_soft; border: 1px solid $accent; }
+QToolTip { background: $elevated; color: $fg; border: 1px solid $border; padding: 4px 6px; }
+QTabWidget::pane { border: 1px solid $border; border-radius: 6px; background: $bg; top: -1px; }
+QTabBar { background: transparent; }
+QTabBar::tab { background: $panel; color: $muted; padding: 8px 14px; border: 1px solid $border; border-bottom: 0; border-top-left-radius: 6px; border-top-right-radius: 6px; margin-right: 3px; }
+QTabBar::tab:selected { background: $bg; color: $fg; border-top: 2px solid $accent; }
+QTabBar::tab:hover { color: $fg; background: $hover; }
+QTreeView, QListView, QTableView { background: $tree; alternate-background-color: $panel; color: $fg; border: 0; outline: 0; padding: 5px; }
+QTreeView::item, QListView::item { padding: 4px 3px; border-radius: 4px; }
+QTreeView::item:hover, QListView::item:hover { background: $hover; }
+QTreeView::item:selected, QListView::item:selected { background: $accent_soft; color: $fg; }
+QHeaderView::section { background: $panel; color: $muted; border: 0; padding: 4px 8px; }
+QTextEdit, QPlainTextEdit, QTextBrowser, QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox, QFontComboBox { background: $input_bg; color: $fg; border: 1px solid $border; border-radius: 5px; selection-background-color: $selection; selection-color: $fg; }
+QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox { padding: 6px 8px; }
+QLineEdit:focus, QSpinBox:focus, QComboBox:focus, QPlainTextEdit:focus { border: 1px solid $accent; }
+QComboBox QAbstractItemView { background: $elevated; color: $fg; border: 1px solid $border; selection-background-color: $accent_soft; selection-color: $fg; }
+QComboBox::drop-down { border: 0; width: 22px; }
+QCheckBox, QRadioButton, QLabel, QGroupBox { background: transparent; }
+QCheckBox { spacing: 8px; }
+QGroupBox { border: 1px solid $border; border-radius: 6px; margin-top: 10px; padding: 12px 8px 8px 8px; }
+QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 4px; color: $muted; }
+QPushButton { background: $btn; color: #ffffff; border: 0; border-radius: 5px; padding: 7px 14px; }
+QPushButton:hover { background: $btn_hover; }
+QPushButton:pressed { background: $btn_pressed; }
+QPushButton:disabled { background: $border; color: $muted; }
+QPushButton[flat="true"], QToolButton[flat="true"] { background: transparent; color: $fg; border: 1px solid transparent; padding: 3px 8px; }
+QPushButton[flat="true"]:hover { background: $hover; }
+QPushButton[secondary="true"] { background: $panel; color: $fg; border: 1px solid $border; }
+QPushButton[secondary="true"]:hover { background: $hover; }
+QSplitter::handle { background: $border; }
+QSplitter::handle:hover { background: $accent; }
+QMenu { background: $elevated; color: $fg; border: 1px solid $border; padding: 4px; }
+QMenu::item { padding: 7px 28px 7px 10px; border-radius: 4px; }
+QMenu::item:selected { background: $accent_soft; }
+QMenu::separator { height: 1px; background: $border; margin: 4px 8px; }
+QStatusBar { background: $panel; color: $muted; border-top: 1px solid $border; }
+QStatusBar::item { border: 0; }
+QStatusBar QToolButton { padding: 2px 8px; border-radius: 3px; color: $muted; }
+QStatusBar QToolButton:hover { background: $hover; color: $fg; }
+QScrollBar:vertical { background: transparent; width: 10px; margin: 0; }
+QScrollBar::handle:vertical { background: $scroll; min-height: 24px; border-radius: 5px; }
+QScrollBar:horizontal { background: transparent; height: 10px; margin: 0; }
+QScrollBar::handle:horizontal { background: $scroll; min-width: 24px; border-radius: 5px; }
+QScrollBar::add-line, QScrollBar::sub-line { width: 0; height: 0; }
+QScrollBar::add-page, QScrollBar::sub-page { background: transparent; }
+#FindBar { background: $panel; border-bottom: 1px solid $border; }
+#FindBar QLineEdit[invalid="true"] { border: 1px solid $error; }
+#PaletteFrame { background: $elevated; border: 1px solid $border; border-radius: 10px; }
+#PaletteFrame QLineEdit { border: 0; border-bottom: 1px solid $border; border-radius: 0; font-size: 11pt; padding: 10px 12px; background: $elevated; }
+#PaletteFrame QListWidget { background: $elevated; }
+#WelcomePage, #WelcomePage QWidget { background: $bg; }
+#WelcomeTitle { font-size: 26pt; font-weight: 600; color: $fg; }
+#WelcomeSub { color: $muted; font-size: 11pt; }
+#PanelHeader { background: $panel; color: $muted; padding: 4px 8px; font-weight: 600; }
+#OutputView { font-family: 'Cascadia Code', 'Consolas', 'JetBrains Mono', monospace; font-size: 10pt; }
+""")
 
-THEMES = {
-    "Default (Dark)": DARK_THEME_STYLESHEET,
-    "Light": LIGHT_THEME_STYLESHEET,
-    "Darcula": DARCULA_THEME_STYLESHEET,
-}
+def build_stylesheet(name):
+    palette = get_theme(name)
+    return _QSS.substitute(palette)
+
+THEME_STYLESHEETS = {name: build_stylesheet(name) for name in THEMES}
+DARK_THEME_STYLESHEET = THEME_STYLESHEETS["dark"]
+LIGHT_THEME_STYLESHEET = THEME_STYLESHEETS["light"]
+
+__all__ = [
+    "THEME_STYLESHEETS", "THEMES", "DEFAULT_THEME", "DARK_THEME_STYLESHEET",
+    "LIGHT_THEME_STYLESHEET", "build_stylesheet", "get_theme", "theme_names",
+]
