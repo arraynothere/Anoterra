@@ -5,7 +5,6 @@ from PyQt6.QtWidgets import QApplication
 
 from ui.main_window import AnoterraMainWindow
 
-
 class EditorViewOptionsTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -33,7 +32,6 @@ class EditorViewOptionsTest(unittest.TestCase):
             self.assertEqual(editor.wrapMode(), QsciScintilla.WrapMode.WrapNone)
         finally:
             window.close()
-
 
 if __name__ == "__main__":
     unittest.main()

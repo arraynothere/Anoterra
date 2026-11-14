@@ -3,26 +3,24 @@ import os
 import re
 
 from PyQt6.QtCore import QEvent, QProcess, Qt, QTimer, QUrl, pyqtSignal
-from PyQt6.QtGui import QColor, QKeySequence, QTextCharFormat, QTextCursor
+from PyQt6.QtGui import QColor, QKeySequence, QPixmap, QTextCharFormat, QTextCursor
 from PyQt6.QtWidgets import (
-    QAbstractItemView, QApplication, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFileDialog,
+    QApplication, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFileDialog,
     QFontComboBox, QFormLayout, QFrame, QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem,
     QPlainTextEdit, QPushButton, QSpinBox, QTabBar, QTabWidget, QTextBrowser, QToolButton, QTreeWidget,
     QTreeWidgetItem, QVBoxLayout, QWidget,
 )
 
-from core.analysis import IGNORED_DIRS, parse_globs, search_in_files
+from core.analysis import parse_globs, search_in_files
 from core.settings import DEFAULTS
 from core.theme_data import THEMES
-from core.utils import build_pattern, console_encoding, fuzzy_filter, parse_location
-
+from core.utils import build_pattern, console_encoding, fuzzy_filter, parse_location, safe_relpath
 
 def _set_flag(widget, name, value):
     """Set a dynamic property and re-polish so the stylesheet picks it up."""
     widget.setProperty(name, value)
     widget.style().unpolish(widget)
     widget.style().polish(widget)
-
 
 def _tool_toggle(text, tip):
     button = QToolButton()
@@ -365,6 +363,9 @@ class SettingsDialog(QDialog):
             ("run_timeout", "Stop runs after N seconds (0 = never)", "int", (0, 86400)),
             ("save_before_run", "Save the file before running", "bool", None),
         ]),
+        ("Plugins", [
+            ("enable_plugins", "Enable plugins from <workspace>/plugins (trusted workspaces only)", "bool", None),
+        ]),
     ]
 
     def __init__(self, settings, parent=None):
@@ -613,7 +614,7 @@ class SearchPanel(QWidget):
             group = self._groups.get(path)
             if group is None:
                 group = QTreeWidgetItem(self.results)
-                group.setText(0, os.path.relpath(path, self.root))
+                group.setText(0, safe_relpath(path, self.root))
                 group.setData(0, Qt.ItemDataRole.UserRole, None)
                 self._groups[path] = group
                 group.setExpanded(True)
@@ -621,7 +622,7 @@ class SearchPanel(QWidget):
             child.setText(0, f"{line}:  {text.strip()[:160]}")
             child.setData(0, Qt.ItemDataRole.UserRole, (path, line, start, end))
             self._count += 1
-            group.setText(0, f"{os.path.relpath(path, self.root)}  ({group.childCount()})")
+            group.setText(0, f"{safe_relpath(path, self.root)}  ({group.childCount()})")
         self.status.setText(f"Searching...  {self._count} result(s)")
 
     def _activate(self, item, _column=0):
@@ -919,3 +920,19 @@ class WelcomeWidget(QWidget):
         visible = bool(paths)
         self.recent.setVisible(visible)
         self.recent_label.setVisible(visible)
+
+class AnoterraImagePreviewDialog(QDialog):
+    """Preview Dialog Image (PNG, JPG, dll) from file tree."""
+    def __init__(self, file_path, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(f"Asset Preview: {os.path.basename(file_path)}")
+        self.resize(500, 400)
+        layout = QVBoxLayout(self)
+        label = QLabel()
+        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        pixmap = QPixmap(file_path)
+        if not pixmap.isNull():
+            label.setPixmap(pixmap.scaled(460, 360, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+        else:
+            label.setText("Failed, file not supported.")
+        layout.addWidget(label)

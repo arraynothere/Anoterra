@@ -1,7 +1,7 @@
 """Qt stylesheets generated from the palettes in ``core.theme_data``."""
 from string import Template
 
-from core.theme_data import DEFAULT_THEME, THEMES, get_theme, theme_names
+from core.theme_data import THEMES, get_theme
 
 _QSS = Template(r"""
 QMainWindow, QWidget { background: $bg; color: $fg; font-family: 'Segoe UI', 'Inter', 'Noto Sans', sans-serif; font-size: 10pt; }
@@ -63,6 +63,7 @@ QScrollBar::add-page, QScrollBar::sub-page { background: transparent; }
 #WelcomeTitle { font-size: 26pt; font-weight: 600; color: $fg; }
 #WelcomeSub { color: $muted; font-size: 11pt; }
 #PanelHeader { background: $panel; color: $muted; padding: 4px 8px; font-weight: 600; }
+#Breadcrumbs { padding: 4px 8px; font-size: 11px; background: $panel; color: $fg; border-bottom: 1px solid $border; }
 #OutputView { font-family: 'Cascadia Code', 'Consolas', 'JetBrains Mono', monospace; font-size: 10pt; }
 """)
 
@@ -75,6 +76,6 @@ DARK_THEME_STYLESHEET = THEME_STYLESHEETS["dark"]
 LIGHT_THEME_STYLESHEET = THEME_STYLESHEETS["light"]
 
 __all__ = [
-    "THEME_STYLESHEETS", "THEMES", "DEFAULT_THEME", "DARK_THEME_STYLESHEET",
-    "LIGHT_THEME_STYLESHEET", "build_stylesheet", "get_theme", "theme_names",
+    "THEME_STYLESHEETS", "THEMES", "DARK_THEME_STYLESHEET",
+    "LIGHT_THEME_STYLESHEET", "build_stylesheet", "get_theme",
 ]

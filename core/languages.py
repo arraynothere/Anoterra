@@ -7,7 +7,6 @@ import sys
 import tempfile
 from dataclasses import dataclass, field
 
-
 @dataclass(frozen=True)
 class Language:
     key: str
@@ -20,7 +19,6 @@ class Language:
     colon_indent: bool = False   # trailing ':' opens an indented block
     brace_indent: bool = True    # trailing { ( [ opens an indented block
     keywords: tuple = ()
-
 
 _JS_WORDS = (
     "function", "const", "let", "var", "return", "if", "else", "for", "while", "do", "switch", "case",
@@ -79,11 +77,9 @@ _PHP_WORDS = (
     "foreach", "while", "echo", "require", "include", "namespace", "use", "array", "isset", "empty",
 )
 
-
 def _python_words():
     names = [n for n in dir(builtins) if not n.startswith("_")]
     return tuple(sorted(set(keyword.kwlist + names + ["self", "__init__", "__name__", "__main__"])))
-
 
 LANGUAGES = [
     Language("python", "Python", (".py", ".pyw", ".pyi"), (), "QsciLexerPython", "#", (), True, True, _python_words()),
@@ -96,7 +92,7 @@ LANGUAGES = [
     Language("go", "Go", (".go",), (), "QsciLexerCPP", "//", (), False, True, _GO_WORDS),
     Language("rust", "Rust", (".rs",), (), "QsciLexerCPP", "//", (), False, True, _RUST_WORDS),
     Language("php", "PHP", (".php", ".phtml"), (), "QsciLexerHTML", "//", (), False, True, _PHP_WORDS),
-    Language("html", "HTML", (".html", ".htm", ".xhtml"), (), "QsciLexerHTML", "", ("<!--", "-->"), False, False, _HTML_WORDS),
+    Language("html", "HTML", (".html", ".htm", ".xhtml"), (), "QsciLexerHTML", "", ("<!--", "-->"), False, True, _HTML_WORDS),
     Language("css", "CSS", (".css",), (), "QsciLexerCSS", "", ("/*", "*/"), False, True, _CSS_WORDS),
     Language("scss", "SCSS / Less", (".scss", ".sass", ".less"), (), "QsciLexerCSS", "//", (), False, True, _CSS_WORDS),
     Language("json", "JSON", (".json", ".jsonc", ".webmanifest"), (".babelrc", ".eslintrc"), "QsciLexerJSON", "", (), False, True, ("true", "false", "null")),
@@ -130,7 +126,6 @@ for _lang in LANGUAGES:
 TEXT = LANGUAGE_BY_KEY["text"]
 PYTHON = LANGUAGE_BY_KEY["python"]
 
-
 def detect_language(path_or_name, default=None):
     """Return the Language for a path / title. Unknown names fall back to ``default`` (Python)."""
     if not path_or_name:
@@ -144,12 +139,8 @@ def detect_language(path_or_name, default=None):
         return _BY_EXT[ext]
     return default or TEXT
 
-
-# ---------------------------------------------------------------- running ----
-
 class RunError(Exception):
     """Raised when a file cannot be run (missing toolchain, unsupported type)."""
-
 
 @dataclass
 class RunPlan:
@@ -157,7 +148,6 @@ class RunPlan:
     run: list = field(default_factory=list)     # final command
     cleanup_dir: str = ""
     label: str = ""
-
 
 def find_python(custom=None):
     """Interpreter used to run .py files. When frozen, sys.executable is Anoterra itself."""
@@ -171,7 +161,6 @@ def find_python(custom=None):
             return found
     raise RunError("Python was not found in PATH. Install Python or set an interpreter in Settings.")
 
-
 def _need(*tools):
     for tool in tools:
         found = shutil.which(tool)
@@ -179,7 +168,6 @@ def _need(*tools):
             return found
     names = " / ".join(tools)
     raise RunError(f"'{names}' was not found in PATH. Install it to run this kind of file.")
-
 
 def run_plan(file_path, python_exe=None, debug=False, args=None):
     """Build the commands needed to run ``file_path``; raises RunError when impossible."""

@@ -1,23 +1,21 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-block_cipher = None
-
 a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('anoterra.ico', '.'), ('anoterra.png', '.')],
-    hiddenimports=['PyQt6.Qsci', 'psutil'],
+    datas=[('anoterra.ico', '.'), ('anoterra.png', '.'), ('core/debug_worker.py', 'core')],
+    hiddenimports=['PyQt6.Qsci', 'psutil', 'black', 'blib2to3', 'click', 'pathspec', 'platformdirs', 'packaging',
+                   'mypy_extensions'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
-    cipher=block_cipher,
     noarchive=False,
 )
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+pyz = PYZ(a.pure, a.zipped_data)
 
 exe = EXE(
     pyz,

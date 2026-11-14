@@ -20,8 +20,10 @@ from core.runner import CodeRunnerEngine
 from core.settings import DEFAULTS, coerce, editor_options
 from core.theme_data import THEMES, get_theme
 from core.utils import (
-    EOL_NAMES, BinaryFileError, apply_save_transforms, format_duration, read_text_file, write_text_file,
+    EOL_NAMES, BinaryFileError, apply_save_transforms, format_duration, read_text_file, safe_relpath, write_text_file,
 )
+from core.trust import is_too_broad, is_trusted, with_trusted, without_trusted
+from ui.debug_panel import DebugController
 from ui.themes import THEME_STYLESHEETS
 from ui.widgets import (
     AnoterraHtmlPreview, AnoterraTabWidget, FindReplaceBar, OutlinePanel, OutputPage, PaletteDialog,
@@ -49,6 +51,10 @@ SHORTCUTS = [
         ("Ctrl+= / Ctrl+- / Ctrl+0", "Zoom in / out / reset"), ("Ctrl+Shift+V", "Open preview (HTML / Markdown)"),
     ]),
     ("Run", [("F5", "Run"), ("Ctrl+F5", "Run with performance profiling"), ("Shift+F5", "Stop")]),
+    ("Debug (Python)", [
+        ("Ctrl+Shift+F5", "Start debugging"), ("F9 / Shift+Click gutter", "Toggle breakpoint"),
+        ("F8", "Continue"), ("F10 / F11 / Shift+F11", "Step over / into / out"),
+    ]),
 ]
 
 class AnoterraHelpDialog(QDialog):
@@ -77,9 +83,15 @@ class AnoterraHelpDialog(QDialog):
             "<li>Click a traceback or compiler error in the console to jump to the line</li>"
             "<li>Find / replace with regex, search in files, outline and bookmarks</li>"
             "<li>Live syntax check for Python and JSON, built-in formatter (uses Black when installed)</li>"
-            "<li>Embedded terminal, HTML and Markdown live preview, 5 color themes, session restore</li></ul>"
+            "<li>Embedded terminal, HTML and Markdown live preview, 8 color themes, session restore</li></ul>"
         )
         layout.addWidget(browser)
+
+def _is_within(candidate, root):
+    """True when ``candidate`` is ``root`` itself or lives inside it (separator-aware)."""
+    candidate = os.path.normcase(os.path.abspath(candidate))
+    root = os.path.normcase(os.path.abspath(root))
+    return candidate == root or candidate.startswith(root.rstrip(os.sep) + os.sep)
 
 class AnoterraMainWindow(QMainWindow):
     def __init__(self):
@@ -119,6 +131,7 @@ class AnoterraMainWindow(QMainWindow):
         self.watcher.fileChanged.connect(self._on_external_change)
 
         self._init_ui()
+        self._load_plugins()
         self._restart_autosave()
         saved_geometry = self.settings.value("window_geometry")
         if saved_geometry:
@@ -149,12 +162,114 @@ class AnoterraMainWindow(QMainWindow):
             widget = self.editor_tabs.widget(index)
             if isinstance(widget, AnoterraEditor):
                 yield widget
+                
+    def _trusted_workspaces(self):
+        value = self.settings.value("trusted_workspaces", [])
+        if isinstance(value, str):
+            value = [value] if value else []
+        return [p for p in (value or []) if isinstance(p, str)]
+
+    def _workspace_trusted(self, ask=False):
+        """Workspace Trust (like VS Code): plugins run only from folders the user trusted explicitly."""
+        workspace = self.current_workspace
+        if is_trusted(self._trusted_workspaces(), workspace):
+            return True
+        if not ask or self._testing or is_too_broad(workspace):
+            return False
+        if workspace in getattr(self, "_trust_declined", set()):
+            return False
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Warning)
+        box.setWindowTitle("Trust this workspace?")
+        box.setText(f"Do you trust the authors of the files in this folder?\n\n{workspace}")
+        box.setInformativeText(
+            "Plugins are Python code that runs with the same permissions as you (no sandbox). "
+            "Only trust folders from sources you know. Without trust, plugins are not loaded.")
+        trust = box.addButton("Trust Folder and Load Plugins", QMessageBox.ButtonRole.AcceptRole)
+        box.addButton("Don't Trust", QMessageBox.ButtonRole.RejectRole)
+        box.exec()
+        if box.clickedButton() is trust:
+            self.settings.setValue("trusted_workspaces", with_trusted(self._trusted_workspaces(), workspace))
+            return True
+        self._trust_declined = getattr(self, "_trust_declined", set()) | {workspace}
+        return False
+
+    def _manage_workspace_trust(self):
+        workspace = self.current_workspace
+        trusted = is_trusted(self._trusted_workspaces(), workspace)
+        box = QMessageBox(self)
+        box.setWindowTitle("Workspace Trust")
+        box.setText(f"{workspace}\n\nThis folder is {'trusted' if trusted else 'NOT trusted'}.")
+        box.setInformativeText("Plugins only load from trusted folders." if trusted else
+                               "Trust it only if you know where its files come from.")
+        if trusted:
+            action = box.addButton("Remove Trust", QMessageBox.ButtonRole.DestructiveRole)
+        elif is_too_broad(workspace):
+            action = None
+            box.setInformativeText("Your home folder or a drive root cannot be trusted as a whole. "
+                                   "Open a project folder instead.")
+        else:
+            action = box.addButton("Trust This Folder", QMessageBox.ButtonRole.AcceptRole)
+        box.addButton("Close", QMessageBox.ButtonRole.RejectRole)
+        box.exec()
+        if action is None or box.clickedButton() is not action:
+            return
+        if trusted:
+            self.settings.setValue("trusted_workspaces", without_trusted(self._trusted_workspaces(), workspace))
+            self.statusBar().showMessage("Workspace is no longer trusted (already loaded plugins stay until restart)", 6000)
+        else:
+            self.settings.setValue("trusted_workspaces", with_trusted(self._trusted_workspaces(), workspace))
+            self._trust_declined = set()
+            self._load_plugins()
+
+    def _load_plugins(self):
+        """Load ``*.py`` plugins from ``<workspace>/plugins``.
+
+        Requires the ``enable_plugins`` preference (off by default) **and** a trusted workspace.
+        The folder is never created automatically and ``sys.path`` is left untouched.
+        Plugins still run with the user's full privileges once loaded (no sandbox), like VS Code extensions.
+        """
+        if not self.prefs.get("enable_plugins", False) or getattr(self, "_plugins_loaded", False):
+            return
+        plugins_dir = os.path.join(self.current_workspace, "plugins")
+        if not os.path.isdir(plugins_dir) or os.path.abspath(plugins_dir) == os.path.join(os.path.expanduser("~"), "plugins"):
+            return
+        names = [n for n in sorted(os.listdir(plugins_dir)) if n.endswith(".py") and not n.startswith("_")]
+        if not names:
+            return
+        if not self._workspace_trusted(ask=True):
+            self.statusBar().showMessage("Plugins not loaded: this workspace is not trusted (File > Workspace Trust...)", 8000)
+            return
+        self._plugins_loaded = True
+        import importlib.util
+        loaded = []
+        for filename in names:
+            try:
+                spec = importlib.util.spec_from_file_location(f"anoterra_plugin_{filename[:-3]}", os.path.join(plugins_dir, filename))
+                mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(mod)
+                if hasattr(mod, "register_plugin"):
+                    mod.register_plugin(self)
+                loaded.append(filename)
+            except Exception as exc:
+                print(f"Cannot load plugin {filename}: {exc}", file=sys.stderr)
+        if loaded:
+            self.statusBar().showMessage(f"Loaded {len(loaded)} plugin(s): {', '.join(loaded)}", 6000)
+
+    def _on_file_double_clicked(self, index: QModelIndex):
+        path = self.file_model.filePath(index)
+        if os.path.isfile(path):
+            ext = os.path.splitext(path)[1].lower()
+            if ext in (".png", ".jpg", ".jpeg", ".gif", ".bmp", ".ico", ".webp"):
+                from ui.widgets import AnoterraImagePreviewDialog
+                dlg = AnoterraImagePreviewDialog(path, self)
+                dlg.exec()
+            else:
+                self._open_path(path)                
 
     def _init_ui(self):
         self.main_splitter = QSplitter(Qt.Orientation.Horizontal)
         self.setCentralWidget(self.main_splitter)
-
-        # -- sidebar: explorer / search / outline
         self.sidebar = QTabWidget()
         self.sidebar.setMinimumWidth(180)
         self.file_model = QFileSystemModel()
@@ -191,6 +306,12 @@ class AnoterraMainWindow(QMainWindow):
         area_layout = QVBoxLayout(editor_area)
         area_layout.setContentsMargins(0, 0, 0, 0)
         area_layout.setSpacing(0)
+        
+        self.breadcrumbs_bar = QLabel("Workspace > Untitled.py")
+        self.breadcrumbs_bar.setObjectName("Breadcrumbs")
+        area_layout.addWidget(self.breadcrumbs_bar)
+
+        self.editor_minimap_splitter = QSplitter(Qt.Orientation.Horizontal)
         self.editor_tabs = AnoterraTabWidget()
         self.editor_tabs.setTabsClosable(True)
         self.editor_tabs.setMovable(True)
@@ -199,10 +320,24 @@ class AnoterraMainWindow(QMainWindow):
         self.editor_tabs.currentChanged.connect(self._on_current_tab_changed)
         self.editor_tabs.count_changed.connect(self._update_empty_state)
         self.editor_tabs.tab_menu_requested.connect(self._tab_menu)
+        
+        self.editor_minimap_splitter.addWidget(self.editor_tabs)
+        
+        self.minimap_editor = AnoterraEditor()
+        self.minimap_editor.setReadOnly(True)
+        self.minimap_editor.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.minimap_editor.zoomTo(-10) 
+        self.minimap_editor.setMarginWidth(0, 0)
+        self.minimap_editor.setMarginWidth(1, 0)
+        self.minimap_editor.hide() 
+        self.editor_minimap_splitter.addWidget(self.minimap_editor)
+        self.editor_minimap_splitter.setSizes([1100, 0])
+
         self.find_bar = FindReplaceBar(self.current_editor)
         self.find_bar.status_message.connect(lambda text: self.statusBar().showMessage(text, 3000))
         area_layout.addWidget(self.find_bar)
-        area_layout.addWidget(self.editor_tabs, 1)
+        area_layout.addWidget(self.editor_minimap_splitter, 1)
+        
         self.editor_stack.addWidget(editor_area)
         self.output_splitter.addWidget(self.editor_stack)
         
@@ -220,6 +355,8 @@ class AnoterraMainWindow(QMainWindow):
         self.bottom_tabs.addTab(self.output_page, "Output")
         self.bottom_tabs.addTab(self.problems_page, "Problems")
         self.bottom_tabs.addTab(self.terminal_page, "Terminal")
+        self.debug = DebugController(self)
+        self.bottom_tabs.addTab(self.debug.panel, "Debug")
         self.bottom_tabs.currentChanged.connect(self._on_bottom_tab_changed)
         self.output_splitter.addWidget(self.bottom_tabs)
         self._apply_output_colors()
@@ -286,6 +423,7 @@ class AnoterraMainWindow(QMainWindow):
         self._act(file_menu, "Close Tab", lambda: self._close_tab(self.editor_tabs.currentIndex()), "Ctrl+W")
         self._act(file_menu, "Close All Tabs", self._close_all_tabs)
         file_menu.addSeparator()
+        self._act(file_menu, "Workspace Trust...", self._manage_workspace_trust)
         self._act(file_menu, "Settings...", self._open_settings, "Ctrl+,")
         self._act(file_menu, "Exit", self.close, "Ctrl+Q")
 
@@ -321,6 +459,8 @@ class AnoterraMainWindow(QMainWindow):
         self._act(view_menu, "Show Output", lambda: self._show_bottom(0))
         self._act(view_menu, "Show Problems", lambda: self._show_bottom(1))
         self._act(view_menu, "Toggle Terminal", self._toggle_terminal, "Ctrl+`")
+        self._act(view_menu, "Toggle Minimap Code View", self._toggle_minimap, "Ctrl+M", checkable=True, checked=False)
+        
         self._act(view_menu, "Open Preview (HTML / Markdown)", self._open_preview_for_current, "Ctrl+Shift+V")
         view_menu.addSeparator()
         theme_menu = view_menu.addMenu("Theme")
@@ -362,6 +502,14 @@ class AnoterraMainWindow(QMainWindow):
         self._act(run_menu, "Run & Debug", lambda: self._execute_code("debug"), "Ctrl+F5")
         self._act(run_menu, "Run with Arguments...", self._run_with_arguments)
         self._act(run_menu, "Stop", self._stop_execution, "Shift+F5")
+        run_menu.addSeparator()
+        self._act(run_menu, "Start Debugging (Breakpoints)", lambda: self.debug.start(), "Ctrl+Shift+F5")
+        self._act(run_menu, "Toggle Breakpoint", lambda: self.debug.toggle_breakpoint(), "F9")
+        self._act(run_menu, "Continue", lambda: self.debug.action("continue"), "F8")
+        self._act(run_menu, "Step Over", lambda: self.debug.action("next"), "F10")
+        self._act(run_menu, "Step Into", lambda: self.debug.action("step"), "F11")
+        self._act(run_menu, "Step Out", lambda: self.debug.action("out"), "Shift+F11")
+        self._act(run_menu, "Clear All Breakpoints", lambda: self.debug.clear_breakpoints())
 
         help_menu = menubar.addMenu("&Help")
         self._act(help_menu, "Documentation & Shortcuts", self._open_help_dialog, "F1")
@@ -427,8 +575,53 @@ class AnoterraMainWindow(QMainWindow):
         button.setToolTip(tip)
         button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         return button
+        
+    def _toggle_minimap(self, enabled):
+        if enabled:
+            self.minimap_editor.show()
+            self.editor_minimap_splitter.setSizes([1100, 180])
+            editor = self.current_editor()
+            if editor:
+                text = editor.text()
+                if text != self.minimap_editor.text():
+                    self.minimap_editor.setText(text)
+                self.minimap_editor.set_theme(self.current_theme)
+        else:
+            self.minimap_editor.hide()
+            self.editor_minimap_splitter.setSizes([1100, 0])
 
-    # ---------------------------------------------------------------- tabs ----
+    def _sync_minimap_text(self):
+        if self.minimap_editor.isVisible():
+            editor = self.current_editor()
+            if editor:
+                self.minimap_editor.setText(editor.text())
+
+    def _update_breadcrumbs(self):
+        editor = self.current_editor()
+        if not editor:
+            self.breadcrumbs_bar.setText(f"{os.path.basename(self.current_workspace)}")
+            return
+            
+        file_path = editor.file_path
+        if file_path:
+            rel_path = safe_relpath(file_path, self.current_workspace)
+            path_parts = rel_path.split(os.sep)
+        else:
+            tab_idx = self.editor_tabs.currentIndex()
+            title = self.editor_tabs.tabText(tab_idx).removesuffix(" *") if tab_idx >= 0 else "Untitled"
+            path_parts = [title]
+
+        line, _ = editor.getCursorPosition()
+        symbols = extract_symbols(editor.text(), editor.language.key) if editor.length() < 1_500_000 else []
+        active_symbol = ""
+        for sym in symbols:
+            if sym.line <= line:
+                active_symbol = f" > {sym.name}"
+            else:
+                break
+
+        full_chain = " > ".join([os.path.basename(self.current_workspace)] + path_parts) + active_symbol
+        self.breadcrumbs_bar.setText(full_chain)
 
     def _create_new_tab(self, title, file_path=None, content="", encoding="utf-8", eol=None):
         editor = AnoterraEditor(file_path=file_path, language_hint=title)
@@ -461,15 +654,20 @@ class AnoterraMainWindow(QMainWindow):
         )
         editor.content_changed_signal.connect(lambda _m: self._schedule_analysis())
         editor.textChanged.connect(self._schedule_analysis)
+        editor.textChanged.connect(self._sync_minimap_text)
         editor.cursorPositionChanged.connect(self._update_cursor_status)
+        editor.cursorPositionChanged.connect(self._update_breadcrumbs)
         editor.selectionChanged.connect(self._update_cursor_status)
         editor.files_dropped.connect(self._open_paths)
-        index = self.editor_tabs.addTab(editor, title)
+        icon = self._get_icon_for_language(editor.language.key)
+        index = self.editor_tabs.addTab(editor, icon, title)        
         if file_path:
             self.editor_tabs.setTabToolTip(index, file_path)
         self.editor_tabs.setCurrentIndex(index)
         self._update_cursor_status()
+        self._update_breadcrumbs()
         self._schedule_analysis()
+        self._sync_minimap_text()
         return editor
 
     def _update_tab_modified_state(self, editor, modified):
@@ -500,11 +698,14 @@ class AnoterraMainWindow(QMainWindow):
             self.setWindowTitle("Anoterra IDE")
             self.outline_panel.set_symbols([])
             self.problems_page.set_problems([])
+            self.breadcrumbs_bar.setText(os.path.basename(self.current_workspace))
 
     def _on_current_tab_changed(self, _index=-1):
         self._update_cursor_status()
         self._update_window_title()
+        self._update_breadcrumbs()
         self._schedule_analysis(immediate=True)
+        self._sync_minimap_text()
         if self.find_bar.isVisible():
             self.find_bar.refresh()
 
@@ -601,8 +802,12 @@ class AnoterraMainWindow(QMainWindow):
         editor = self.current_editor()
         if editor is not None:
             editor.set_language(key)
+            current_index = self.editor_tabs.currentIndex()
+            if current_index >= 0:
+                icon = self._get_icon_for_language(editor.language.key)
+                self.editor_tabs.setTabIcon(current_index, icon)
             self._update_cursor_status()
-            self._schedule_analysis(immediate=True)
+            self._schedule_analysis(immediate=True)    
 
     def _schedule_analysis(self, immediate=False):
         if immediate:
@@ -696,13 +901,12 @@ class AnoterraMainWindow(QMainWindow):
             editor.go_to_line(line)
         return editor
 
+    def open_path(self, path, line=None):
+        """Public entry point (used by ``main.py``)."""
+        return self._open_path(path, line)
+
     def _open_paths(self, paths):
         for path in paths:
-            self._open_path(path)
-
-    def _on_file_double_clicked(self, index: QModelIndex):
-        path = self.file_model.filePath(index)
-        if os.path.isfile(path):
             self._open_path(path)
 
     def _open_file_dialog(self):
@@ -722,6 +926,7 @@ class AnoterraMainWindow(QMainWindow):
         self.search_panel.set_root(folder)
         self.terminal_page.cwd = folder
         self.statusBar().showMessage(f"Workspace loaded: {folder}", 4000)
+        self._update_breadcrumbs()
 
     def _open_search_result(self, path, line, start, end):
         editor = self._open_path(path, line)
@@ -746,8 +951,6 @@ class AnoterraMainWindow(QMainWindow):
             "palette": self._show_command_palette,
             "quick": self._show_quick_open,
         }[action]()
-
-    # ---------------------------------------------------------------- saving ----
 
     def _save_editor(self, editor, force_dialog=False):
         if not isinstance(editor, AnoterraEditor):
@@ -780,6 +983,7 @@ class AnoterraMainWindow(QMainWindow):
         editor.mark_saved()
         self._remember_recent(editor.file_path)
         self._update_window_title()
+        self._update_breadcrumbs()
         self.statusBar().showMessage(f"Saved: {editor.file_path}", 3000)
         return True
 
@@ -814,8 +1018,6 @@ class AnoterraMainWindow(QMainWindow):
             self.autosave_timer.start(seconds * 1000)
         else:
             self.autosave_timer.stop()
-
-    # ------------------------------------------------- external file changes ----
 
     def _watch(self, path):
         if path and os.path.exists(path) and path not in self.watcher.files():
@@ -863,6 +1065,7 @@ class AnoterraMainWindow(QMainWindow):
         editor.setFirstVisibleLine(first)
         editor.disk_mtime = os.path.getmtime(editor.file_path)
         editor.mark_saved()
+        self._update_breadcrumbs()
         self.statusBar().showMessage(f"Reloaded {os.path.basename(editor.file_path)} from disk", 3000)
 
     def _reload_active(self):
@@ -887,7 +1090,7 @@ class AnoterraMainWindow(QMainWindow):
             menu.addSeparator()
             self._menu_item(menu, "Copy Path", lambda: QApplication.clipboard().setText(path))
             self._menu_item(menu, "Copy Relative Path", lambda: QApplication.clipboard().setText(
-                os.path.relpath(path, self.current_workspace)))
+                safe_relpath(path, self.current_workspace)))
             self._menu_item(menu, "Reveal in File Manager", lambda: self._reveal(path))
             if os.path.isdir(path):
                 self._menu_item(menu, "Set as Workspace Root", lambda: self._set_workspace(path))
@@ -927,19 +1130,23 @@ class AnoterraMainWindow(QMainWindow):
             QMessageBox.critical(self, "Error", f"Could not rename:\n{exc}")
             return
         for editor in self._editors():
-            if editor.file_path and os.path.normcase(editor.file_path).startswith(os.path.normcase(path)):
+            if editor.file_path and _is_within(editor.file_path, path):
                 new_path = target + editor.file_path[len(path):]
                 self.watcher.removePath(editor.file_path)
                 editor.set_file_path(new_path)
                 index = self.editor_tabs.indexOf(editor)
                 self.editor_tabs.setTabText(index, os.path.basename(new_path) + (" *" if editor.is_modified_flag else ""))
                 self._watch(new_path)
+        self._update_breadcrumbs()
 
     def _delete_path(self, path):
         answer = QMessageBox.question(self, "Delete", f"Move '{os.path.basename(path)}' to the trash?")
         if answer != QMessageBox.StandardButton.Yes:
             return
-        if not QFile.moveToTrash(path):
+        trashed = QFile.moveToTrash(path)
+        if isinstance(trashed, tuple):      # PyQt6 returns (success, path_in_trash)
+            trashed = trashed[0]
+        if not trashed:
             try:
                 shutil.rmtree(path) if os.path.isdir(path) else os.remove(path)
             except OSError as exc:
@@ -947,9 +1154,9 @@ class AnoterraMainWindow(QMainWindow):
                 return
         for index in range(self.editor_tabs.count() - 1, -1, -1):
             widget = self.editor_tabs.widget(index)
-            if isinstance(widget, AnoterraEditor) and widget.file_path and \
-                    os.path.normcase(widget.file_path).startswith(os.path.normcase(path)):
+            if isinstance(widget, AnoterraEditor) and widget.file_path and _is_within(widget.file_path, path):
                 self._remove_tab(index)
+        self._update_breadcrumbs()
 
     @staticmethod
     def _reveal(path):
@@ -989,7 +1196,7 @@ class AnoterraMainWindow(QMainWindow):
     def _show_quick_open(self):
         open_paths = [e.file_path for e in self._editors() if e.file_path]
         root = self.current_workspace
-        items = [(os.path.basename(p), "open  \u2022  " + os.path.relpath(p, root), p) for p in open_paths]
+        items = [(os.path.basename(p), "open  \u2022  " + safe_relpath(p, root), p) for p in open_paths]
         seen = {os.path.normcase(p) for p in open_paths}
         for rel in list_workspace_files(root, limit=8000):
             absolute = os.path.join(root, rel)
@@ -1123,6 +1330,7 @@ class AnoterraMainWindow(QMainWindow):
         self.settings.setValue("theme", self.current_theme)
         for editor in self._editors():
             editor.set_theme(self.current_theme)
+        self.minimap_editor.set_theme(self.current_theme)
         self._apply_output_colors()
         for key, action in self.theme_actions.items():
             action.setChecked(key == self.current_theme)
@@ -1135,6 +1343,8 @@ class AnoterraMainWindow(QMainWindow):
         for key, value in new.items():
             self.prefs[key] = coerce(key, value)
         self._save_prefs()
+        if self.prefs["enable_plugins"]:
+            self._load_plugins()
         if self.prefs["theme"] != self.current_theme:
             self._set_theme(self.prefs["theme"])
         options = editor_options(self.prefs)
@@ -1348,3 +1558,17 @@ class AnoterraMainWindow(QMainWindow):
             "<b>Anoterra IDE</b><br>A flexible, lightweight code editor built with PyQt6 and QScintilla.<br><br>"
             "Press Ctrl+Shift+P to explore every command.",
         )
+        
+    _ICON_BY_LANGUAGE = {
+        "html": "SP_FileDialogDetailedView", "xml": "SP_FileDialogDetailedView",
+        "css": "SP_FileDialogContentsView", "scss": "SP_FileDialogContentsView", "less": "SP_FileDialogContentsView",
+        "json": "SP_FileDialogInfoView", "yaml": "SP_FileDialogInfoView", "yml": "SP_FileDialogInfoView", "toml": "SP_FileDialogInfoView",
+        "shell": "SP_CommandLink", "bash": "SP_CommandLink", "sh": "SP_CommandLink",
+        "batch": "SP_CommandLink", "powershell": "SP_CommandLink",
+    }
+
+    def _get_icon_for_language(self, language_key):
+        """Return a standard Qt icon for the language (generic file icon by default)."""
+        from PyQt6.QtWidgets import QStyle
+        name = self._ICON_BY_LANGUAGE.get(language_key, "SP_FileIcon")
+        return self.style().standardIcon(getattr(QStyle.StandardPixmap, name))

@@ -6,7 +6,6 @@ from PyQt6.QtWidgets import QApplication
 
 from ui.main_window import AnoterraMainWindow
 
-
 class IDEUpgradeTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -50,7 +49,6 @@ class IDEUpgradeTests(unittest.TestCase):
                     self.assertEqual(file.read(), "<h1>two</h1>")
             finally:
                 window.close()
-
 
 if __name__ == "__main__":
     unittest.main()

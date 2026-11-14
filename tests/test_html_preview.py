@@ -6,7 +6,6 @@ from PyQt6.QtWidgets import QApplication, QTextBrowser
 
 from ui.main_window import AnoterraMainWindow
 
-
 class HtmlPreviewTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -37,7 +36,6 @@ class HtmlPreviewTest(unittest.TestCase):
                 self.assertIn("Preview works", preview.toPlainText())
             finally:
                 window.close()
-
 
 if __name__ == "__main__":
     unittest.main()

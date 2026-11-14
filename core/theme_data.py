@@ -81,21 +81,61 @@ THEMES = {
         "type": "#6b4a9e", "function": "#8a5a00", "operator": "#5a5042", "decorator": "#9a347f",
         "tag": "#a23c14", "attribute": "#1d6f8f", "preprocessor": "#9a347f", "regex": "#3f7d3a",
     },
+    "github": {
+        "label": "GitHub Theme", "dark": False,
+        "bg": "#ffffff", "panel": "#f6f8fa", "tree": "#ffffff", "elevated": "#ffffff",
+        "border": "#d0d7de", "fg": "#24292f", "muted": "#57606a", "accent": "#0969da",
+        "accent_soft": "#ddf4ff", "btn": "#1f883d", "btn_hover": "#2da44e", "btn_pressed": "#1a7f37",
+        "hover": "#f3f4f6", "scroll": "#8c959f", "input_bg": "#ffffff", "selection": "#addcff",
+        "ed_bg": "#ffffff", "ed_fg": "#24292f", "margin_bg": "#f6f8fa", "margin_fg": "#8c959f",
+        "caret": "#24292f", "caret_line": "#f6f8fa", "sel_bg": "#addcff", "sel_fg": "#24292f",
+        "fold_bg": "#f6f8fa", "guide": "#eaeef2", "edge": "#d0d7de",
+        "brace_bg": "#ddf4ff", "brace_fg": "#0969da", "bad_brace_bg": "#ffebe9", "bad_brace_fg": "#cf222e",
+        "find_hl": "#fff8c5", "word_hl": "#ddf4ff", "error": "#cf222e", "warn": "#9a6700", "bookmark": "#0969da",
+        "comment": "#6e7781", "keyword": "#cf222e", "string": "#0a3069", "number": "#0550ae",
+        "type": "#953800", "function": "#8250df", "operator": "#24292f", "decorator": "#8250df",
+        "tag": "#116329", "attribute": "#0550ae", "preprocessor": "#cf222e", "regex": "#0a3069",
+    },
+    "eclipse": {
+        "label": "Eclipse Theme", "dark": False,
+        "bg": "#f4f4f4", "panel": "#e8e8e8", "tree": "#ffffff", "elevated": "#ffffff",
+        "border": "#b8b8b8", "fg": "#2a2a2a", "muted": "#666666", "accent": "#2a5db0",
+        "accent_soft": "#d4e2fc", "btn": "#3d72b8", "btn_hover": "#4a85d9", "btn_pressed": "#234c8c",
+        "hover": "#e0e8f0", "scroll": "#adadad", "input_bg": "#ffffff", "selection": "#c1d5f5",
+        "ed_bg": "#ffffff", "ed_fg": "#2a2a2a", "margin_bg": "#eef0f2", "margin_fg": "#787878",
+        "caret": "#000000", "caret_line": "#f7f9fa", "sel_bg": "#c1d5f5", "sel_fg": "#000000",
+        "fold_bg": "#e8e8e8", "guide": "#e3e3e3", "edge": "#cccccc",
+        "brace_bg": "#e2ecfd", "brace_fg": "#0000ff", "bad_brace_bg": "#ffcccc", "bad_brace_fg": "#cc0000",
+        "find_hl": "#fff0a0", "word_hl": "#e2ecfd", "error": "#cc0000", "warn": "#b06c00", "bookmark": "#2a5db0",
+        "comment": "#3f7f5f", "keyword": "#7f0055", "string": "#2a00ff", "number": "#000000",
+        "type": "#000000", "function": "#000000", "operator": "#000000", "decorator": "#7f0055",
+        "tag": "#7f0055", "attribute": "#0000c0", "preprocessor": "#7f0055", "regex": "#2a00ff",
+    },
+    "macos": {
+        "label": "Native MacOS Theme", "dark": True,
+        "bg": "#1e1e1e", "panel": "#2d2d2d", "tree": "#252525", "elevated": "#333333",
+        "border": "#414141", "fg": "#cccccc", "muted": "#888888", "accent": "#007acc",
+        "accent_soft": "#1b3c59", "btn": "#0066cc", "btn_hover": "#007acc", "btn_pressed": "#005299",
+        "hover": "#383838", "scroll": "#555555", "input_bg": "#252525", "selection": "#264f78",
+        "ed_bg": "#1e1e1e", "ed_fg": "#d4d4d4", "margin_bg": "#252525", "margin_fg": "#858585",
+        "caret": "#aeafad", "caret_line": "#2a2d2e", "sel_bg": "#264f78", "sel_fg": "#ffffff",
+        "fold_bg": "#2d2d2d", "guide": "#333333", "edge": "#333333",
+        "brace_bg": "#464646", "brace_fg": "#4ec9b0", "bad_brace_bg": "#5a1d1d", "bad_brace_fg": "#f44747",
+        "find_hl": "#623b00", "word_hl": "#2a2d2e", "error": "#f14c4c", "warn": "#cca700", "bookmark": "#007acc",
+        "comment": "#6a9955", "keyword": "#c586c0", "string": "#ce9178", "number": "#b5cea8",
+        "type": "#4ec9b0", "function": "#dcdcaa", "operator": "#d4d4d4", "decorator": "#c586c0",
+        "tag": "#4ec9b0", "attribute": "#9cdcfe", "preprocessor": "#c586c0", "regex": "#d16969",
+    },
 }
 
 DEFAULT_THEME = "dark"
-
-# Editor code reads these under the historical name.
 EDITOR_PALETTES = THEMES
-
 
 def theme_names():
     return list(THEMES.keys())
 
-
 def get_theme(name):
     return THEMES.get(name, THEMES[DEFAULT_THEME])
-
 
 def classify_style(description):
     """Map a QScintilla style description ("Keyword", "Double-quoted string"...) to a palette key.

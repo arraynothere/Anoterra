@@ -13,7 +13,6 @@ from core.utils import (
     read_text_file, write_text_file,
 )
 
-
 class LanguageTests(unittest.TestCase):
     def test_detection(self):
         self.assertEqual(detect_language("a.py").key, "python")
@@ -25,7 +24,6 @@ class LanguageTests(unittest.TestCase):
         self.assertIn("-u", run_plan("/tmp/a.py").run)
         with self.assertRaises(RunError):
             run_plan("/tmp/a.xyz")
-
 
 class AnalysisTests(unittest.TestCase):
     def test_python_syntax_error_reported(self):
@@ -100,7 +98,6 @@ class UtilTests(unittest.TestCase):
         self.assertEqual(coerce("tab_width", "999"), 16)
         self.assertEqual(set(DEFAULTS["theme"] for _ in [0]), {"dark"})
 
-
 class ThemeTests(unittest.TestCase):
     def test_every_theme_has_all_roles(self):
         reference = set(THEMES["dark"])
@@ -111,7 +108,6 @@ class ThemeTests(unittest.TestCase):
         self.assertEqual(classify_style("Double-quoted string"), "string")
         self.assertEqual(classify_style("Keyword"), "keyword")
         self.assertEqual(classify_style("Comment line"), "comment")
-
 
 if __name__ == "__main__":
     unittest.main()

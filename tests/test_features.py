@@ -11,7 +11,6 @@ from core.utils import build_pattern
 from ui.main_window import AnoterraMainWindow
 from ui.widgets import SettingsDialog
 
-
 def _pump(app, condition, timeout=15.0):
     deadline = time.time() + timeout
     while time.time() < deadline:
@@ -20,7 +19,6 @@ def _pump(app, condition, timeout=15.0):
             return True
         time.sleep(0.02)
     return False
-
 
 class FeatureTests(unittest.TestCase):
     @classmethod
@@ -152,7 +150,6 @@ class FeatureTests(unittest.TestCase):
             runner.stop()
             self.assertTrue(_pump(self.app, lambda: bool(done)))
             self.assertTrue(done[0]["stopped"])
-
 
 if __name__ == "__main__":
     unittest.main()

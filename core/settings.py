@@ -28,6 +28,8 @@ DEFAULTS = {
     "python_path": "",
     "run_timeout": 0,
     "save_before_run": True,
+    # plugins
+    "enable_plugins": False,
 }
 
 EDITOR_KEYS = (
@@ -41,10 +43,9 @@ LIMITS = {
     "autosave_seconds": (0, 3600), "run_timeout": (0, 86400),
 }
 
-
 def coerce(key, value):
     """Convert a stored value (QSettings returns strings on some platforms) to its default's type."""
-    default = DEFAULTS[key]
+    default = DEFAULTS.get(key, False if isinstance(DEFAULTS.get(key), bool) else "")
     try:
         if isinstance(default, bool):
             if isinstance(value, str):
@@ -57,7 +58,6 @@ def coerce(key, value):
         return str(value) if value is not None else default
     except (TypeError, ValueError):
         return default
-
 
 def editor_options(settings):
     return {key: settings.get(key, DEFAULTS[key]) for key in EDITOR_KEYS}

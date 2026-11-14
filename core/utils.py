@@ -4,9 +4,6 @@ import re
 
 from dataclasses import dataclass
 
-
-# ------------------------------------------------------------------ search ----
-
 def build_pattern(text, case_sensitive=False, whole_word=False, regex=False):
     """Compile a user query into a Python regex. Raises ``re.error`` for bad regexes."""
     if not text:
@@ -19,7 +16,6 @@ def build_pattern(text, case_sensitive=False, whole_word=False, regex=False):
         flags |= re.IGNORECASE
     return re.compile(body, flags)
 
-
 def expand_replacement(match, replacement, regex):
     """Return the replacement text for ``match`` (supports \\1, \\g<name> in regex mode)."""
     if not regex:
@@ -28,9 +24,6 @@ def expand_replacement(match, replacement, regex):
         return match.expand(replacement)
     except (re.error, IndexError):
         return replacement
-
-
-# ------------------------------------------------------------------- fuzzy ----
 
 def fuzzy_score(query, candidate):
     """Subsequence score (higher is better) or None when ``query`` does not match."""
@@ -60,7 +53,6 @@ def fuzzy_score(query, candidate):
     score -= len(c) // 12                    # prefer shorter candidates
     return score
 
-
 def fuzzy_filter(query, items, key=lambda item: item, limit=200):
     """Return items matching ``query`` ordered by score (stable for empty queries)."""
     if not query.strip():
@@ -73,19 +65,14 @@ def fuzzy_filter(query, items, key=lambda item: item, limit=200):
     scored.sort(key=lambda entry: (entry[0], entry[1]))
     return [entry[2] for entry in scored[:limit]]
 
-
-# ----------------------------------------------------------------- file io ----
-
 class BinaryFileError(Exception):
     """Raised when a file looks binary and should not be opened as text."""
-
 
 @dataclass
 class LoadedText:
     text: str
     encoding: str
     eol: str          # "\n", "\r\n" or "\r"
-
 
 def detect_eol(text):
     crlf = text.count("\r\n")
@@ -96,7 +83,6 @@ def detect_eol(text):
     if crlf >= lf and crlf >= cr:
         return "\r\n"
     return "\n" if lf >= cr else "\r"
-
 
 def read_text_file(path, max_bytes=50 * 1024 * 1024):
     size = os.path.getsize(path)
@@ -119,12 +105,10 @@ def read_text_file(path, max_bytes=50 * 1024 * 1024):
         text = raw.decode(encoding)
     return LoadedText(text, encoding, detect_eol(text))
 
-
 def write_text_file(path, text, encoding="utf-8"):
     """Write text exactly as given (no newline translation)."""
     with open(path, "wb") as handle:
         handle.write(text.encode(encoding, errors="replace"))
-
 
 def apply_save_transforms(text, trim_trailing=False, final_newline=False, eol="\n"):
     """Optional clean-ups performed right before saving."""
@@ -133,9 +117,6 @@ def apply_save_transforms(text, trim_trailing=False, final_newline=False, eol="\
     if final_newline and text and not text.endswith(("\n", "\r")):
         text += eol
     return text
-
-
-# ------------------------------------------------------------------- misc ----
 
 def console_encoding():
     """Encoding used by the platform shell for its output."""
@@ -147,7 +128,6 @@ def console_encoding():
             return "cp437"
     return "utf-8"
 
-
 def format_duration(seconds):
     if seconds < 1:
         return f"{seconds * 1000:.0f} ms"
@@ -156,16 +136,13 @@ def format_duration(seconds):
     minutes, rest = divmod(seconds, 60)
     return f"{int(minutes)} min {rest:.0f} s"
 
-
 EOL_NAMES = {"\n": "LF", "\r\n": "CRLF", "\r": "CR"}
-
 
 _LOCATION_PATTERNS = (
     re.compile(r'File "(?P<path>[^"]+)", line (?P<line>\d+)'),                        # Python traceback
     re.compile(r'(?P<path>[A-Za-z]:[\\/][^:\r\n"\'<>|*?]+?):(?P<line>\d+)(?::(?P<col>\d+))?'),   # C:\x\y.c:12:3
     re.compile(r'(?P<path>(?:\.{0,2}[\\/])?[^\s:"\'()<>|*?]+\.[A-Za-z0-9_+]+):(?P<line>\d+)(?::(?P<col>\d+))?'),  # gcc, node, rustc
 )
-
 
 def parse_location(text):
     """Find a ``file:line`` reference in a console line. Returns (path, line, column|None) or None."""
@@ -175,3 +152,11 @@ def parse_location(text):
             column = match.groupdict().get("col")
             return match.group("path"), int(match.group("line")), int(column) if column else None
     return None
+
+
+def safe_relpath(path, start):
+    """``os.path.relpath`` that never raises (e.g. different drives on Windows)."""
+    try:
+        return os.path.relpath(path, start)
+    except ValueError:
+        return path

@@ -4,18 +4,12 @@ Pure Python (no Qt) so everything here can be unit-tested headlessly.
 """
 import ast
 import fnmatch
-import importlib.util
 import io
 import json
 import os
 import re
-import subprocess
-import sys
 import tokenize
 from dataclasses import dataclass
-
-
-# --------------------------------------------------------------- problems ----
 
 @dataclass
 class Problem:
@@ -23,7 +17,6 @@ class Problem:
     column: int        # 1-based
     message: str
     severity: str = "error"
-
 
 def check_syntax(text, language_key):
     """Return a list of Problems for languages we can validate cheaply and reliably."""
@@ -44,16 +37,12 @@ def check_syntax(text, language_key):
                 problems.append(Problem(exc.lineno, exc.colno, exc.msg))
     return problems
 
-
-# ---------------------------------------------------------------- outline ----
-
 @dataclass
 class Symbol:
     kind: str          # class, function, method, heading, selector, table ...
     name: str
     line: int          # 0-based
     level: int = 0
-
 
 _CALL_KEYWORDS = {"if", "for", "while", "switch", "return", "else", "catch", "sizeof", "new", "do", "case"}
 
@@ -96,7 +85,6 @@ _PATTERNS_BY_LANG = {
     "go": _GO_PATTERNS, "rust": _RUST_PATTERNS, "php": _PHP_PATTERNS,
     "ruby": _RUBY_PATTERNS, "lua": _LUA_PATTERNS, "bash": _BASH_PATTERNS, "sql": _SQL_PATTERNS,
 }
-
 
 def extract_symbols(text, language_key):
     lines = text.splitlines()
@@ -156,9 +144,6 @@ def extract_symbols(text, language_key):
                     break
     return symbols
 
-
-# --------------------------------------------------------------- formatter ----
-
 def _python_protected_lines(text):
     """Line numbers (1-based) inside multi-line strings, whose whitespace must stay untouched."""
     protected = set()
@@ -170,7 +155,6 @@ def _python_protected_lines(text):
     except (tokenize.TokenError, IndentationError, SyntaxError):
         pass
     return protected
-
 
 def _python_builtin_format(text):
     lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
@@ -216,14 +200,16 @@ def _python_builtin_format(text):
 
 
 def _run_black(text):
-    if getattr(sys, "frozen", False) or importlib.util.find_spec("black") is None:
+    """Format with Black in-process (works from source and in the PyInstaller build)."""
+    try:
+        import black
+    except ImportError:
         return None
     try:
-        result = subprocess.run([sys.executable, "-m", "black", "-q", "-"], input=text,
-                                capture_output=True, text=True, timeout=15)
-    except (OSError, subprocess.SubprocessError):
+        formatted = black.format_str(text, mode=black.Mode())
+    except Exception:  # noqa: BLE001 - invalid source or an unsupported Black version: fall back
         return None
-    return result.stdout if result.returncode == 0 and result.stdout else None
+    return formatted or None
 
 
 def format_source(text, language_key):
@@ -243,15 +229,11 @@ def format_source(text, language_key):
         lines.pop()
     return ("\n".join(lines) + "\n") if lines else "", "whitespace"
 
-
-# ---------------------------------------------------------- workspace search ----
-
 IGNORED_DIRS = {
     ".git", ".hg", ".svn", "node_modules", "__pycache__", ".venv", "venv", "env", ".idea", ".vscode",
     "dist", "build", ".gradle", ".mypy_cache", ".pytest_cache", ".tox", "target", ".cache", ".next",
 }
 MAX_SEARCH_FILE_BYTES = 2 * 1024 * 1024
-
 
 def _looks_binary(path):
     try:
@@ -260,14 +242,11 @@ def _looks_binary(path):
     except OSError:
         return True
 
-
 def _matches_globs(name, globs):
     return not globs or any(fnmatch.fnmatch(name.lower(), g.lower()) for g in globs)
 
-
 def parse_globs(text):
     return [part.strip() for part in re.split(r"[,;\s]+", text or "") if part.strip()]
-
 
 def iter_workspace_files(root, globs=(), limit=50000):
     count = 0
@@ -281,14 +260,12 @@ def iter_workspace_files(root, globs=(), limit=50000):
             if count >= limit:
                 return
 
-
 def list_workspace_files(root, limit=20000):
     """Relative paths (forward slashes) used by the Quick Open palette."""
     result = []
     for path in iter_workspace_files(root, limit=limit):
         result.append(os.path.relpath(path, root).replace(os.sep, "/"))
     return result
-
 
 def search_in_files(root, pattern, globs=(), max_results=2000):
     """Yield (path, line_number, line_text, start, end) for every match under ``root``."""

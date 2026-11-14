@@ -14,6 +14,9 @@ from core.utils import build_pattern, expand_replacement
 
 MARKER_BOOKMARK = 1
 MARKER_ERROR = 2
+MARKER_BREAKPOINT = 3
+MARKER_DEBUG_ARROW = 4
+MARKER_DEBUG_LINE = 5
 IND_MATCH = 8
 IND_WORD = 9
 IND_ERROR = 10
@@ -63,7 +66,9 @@ class AnoterraEditor(QsciScintilla):
         self._word_timer.setSingleShot(True)
         self._word_timer.setInterval(220)
         self._word_timer.timeout.connect(self._update_word_highlight)
-
+        
+        self._sci("SCI_SETMOUSEDWELLTIME", 2265, 400)
+        
         self.setAcceptDrops(True)
         self._configure_editor_base()
         self._configure_margins()
@@ -96,6 +101,19 @@ class AnoterraEditor(QsciScintilla):
         self._sci("SCI_SETMULTIPLESELECTION", 2563, 1)
         self._sci("SCI_SETADDITIONALSELECTIONTYPING", 2565, 1)
         self._sci("SCI_SETMULTIPASTE", 2614, 1)
+        
+    def _on_scintilla_dwell_start(self, pos, x, y):
+        if pos < 0:
+            return
+        line, index = self.lineIndexFromPosition(pos)
+        text = self.text(line)
+        color_match = re.search(r'(#(?:[0-9a-fA-F]{3}){1,2}|rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\))', text[max(0, index-10):index+15])
+        if color_match:
+            col_str = color_match.group(1)
+            self.setToolTip(f"Color Preview: {col_str}")
+
+    def _on_scintilla_dwell_end(self, x, y):
+        self.setToolTip("")    
 
     def _configure_margins(self):
         palette = self._palette()
@@ -109,7 +127,8 @@ class AnoterraEditor(QsciScintilla):
         self.setMarginType(1, QsciScintilla.MarginType.SymbolMargin)
         self.setMarginWidth(1, 16)
         self.setMarginSensitivity(1, True)
-        self.setMarginMarkerMask(1, (1 << MARKER_BOOKMARK) | (1 << MARKER_ERROR))
+        self.setMarginMarkerMask(1, (1 << MARKER_BOOKMARK) | (1 << MARKER_ERROR) | (1 << MARKER_BREAKPOINT)
+                                 | (1 << MARKER_DEBUG_ARROW))
         self.setMarginBackgroundColor(1, QColor(palette["margin_bg"]))
         self.markerDefine(QsciScintilla.MarkerSymbol.Circle, MARKER_BOOKMARK)
         self.setMarkerBackgroundColor(QColor(palette["bookmark"]), MARKER_BOOKMARK)
@@ -117,6 +136,14 @@ class AnoterraEditor(QsciScintilla):
         self.markerDefine(QsciScintilla.MarkerSymbol.Circle, MARKER_ERROR)
         self.setMarkerBackgroundColor(QColor(palette["error"]), MARKER_ERROR)
         self.setMarkerForegroundColor(QColor(palette["error"]), MARKER_ERROR)
+        self.markerDefine(QsciScintilla.MarkerSymbol.Circle, MARKER_BREAKPOINT)
+        self.setMarkerBackgroundColor(QColor("#e51400"), MARKER_BREAKPOINT)
+        self.setMarkerForegroundColor(QColor("#e51400"), MARKER_BREAKPOINT)
+        self.markerDefine(QsciScintilla.MarkerSymbol.RightArrow, MARKER_DEBUG_ARROW)
+        self.setMarkerBackgroundColor(QColor("#ffcc00"), MARKER_DEBUG_ARROW)
+        self.setMarkerForegroundColor(QColor("#b38f00"), MARKER_DEBUG_ARROW)
+        self.markerDefine(QsciScintilla.MarkerSymbol.Background, MARKER_DEBUG_LINE)
+        self.setMarkerBackgroundColor(QColor(255, 204, 0, 70), MARKER_DEBUG_LINE)
 
     def _update_margin_width(self):
         if not self.options.get("show_line_numbers", True):
@@ -148,6 +175,7 @@ class AnoterraEditor(QsciScintilla):
         palette = self._palette()
         self.setFolding(QsciScintilla.FoldStyle.BoxedTreeFoldStyle)
         self.setFoldMarginColors(QColor(palette["fold_bg"]), QColor(palette["fold_bg"]))
+        self._sci("SCI_SETFOLDFLAGS", 2235, 16)
 
     def _configure_indicators(self):
         palette = self._palette()
@@ -281,6 +309,8 @@ class AnoterraEditor(QsciScintilla):
         self.marginClicked.connect(self._on_margin_clicked)
         self.cursorPositionChanged.connect(self._schedule_word_highlight)
         self.selectionChanged.connect(self._schedule_word_highlight)
+        self.SCN_DWELLSTART.connect(self._on_scintilla_dwell_start)
+        self.SCN_DWELLEND.connect(self._on_scintilla_dwell_end)
 
     def _on_text_content_changed(self):
         if not self.is_modified_flag:
@@ -292,19 +322,35 @@ class AnoterraEditor(QsciScintilla):
         self.setModified(False)
         self.content_changed_signal.emit(False)
 
-    def _on_margin_clicked(self, margin, line, _modifiers):
+    def _on_margin_clicked(self, margin, line, modifiers):
         if margin == 1:
-            self.toggle_bookmark(line)
-
-    # ------------------------------------------------------------- input ----
+            if modifiers & Qt.KeyboardModifier.ShiftModifier:
+                self.toggle_breakpoint(line)
+            else:
+                self.toggle_bookmark(line)
 
     def keyPressEvent(self, event: QKeyEvent):
         modifiers = event.modifiers()
         key = event.key()
         ctrl = Qt.KeyboardModifier.ControlModifier
+        alt = Qt.KeyboardModifier.AltModifier
 
         if modifiers == ctrl and key == Qt.Key.Key_D:
             self.auto_format_code()
+            event.accept()
+            return
+            
+        if key == Qt.Key.Key_Tab and modifiers == Qt.KeyboardModifier.NoModifier and not self.isListActive():
+            if self._handle_snippet_expansion():
+                event.accept()
+                return
+
+        if modifiers == (ctrl | alt) and key in (Qt.Key.Key_Up, Qt.Key.Key_Down):
+            line, index = self.getCursorPosition()
+            target_line = line - 1 if key == Qt.Key.Key_Up else line + 1
+            if 0 <= target_line < self.lines():
+                pos = self.positionFromLineIndex(target_line, index)
+                self._sci("SCI_ADDSELECTION", 2573, pos, pos)
             event.accept()
             return
 
@@ -319,11 +365,60 @@ class AnoterraEditor(QsciScintilla):
                 event.accept()
                 return
             text = event.text()
+            
+            if text == "/" and self.language.key in ("html", "xml"):
+                line, index = self.getCursorPosition()
+                current_text = self.text(line)
+                if index > 0 and current_text[index - 1] == "<":
+                    tag_match = re.search(r"<([A-Za-z0-9_-]+)[^>]*>\s*$", current_text[:index])
+                    if tag_match:
+                        tag_name = tag_match.group(1)
+                        self.insert(f"/{tag_name}>")
+                        event.accept()
+                        return
+
             if len(text) == 1 and (text in _OPENERS or text in _CLOSERS or text in _QUOTES):
                 if self._handle_pair_typing(text):
                     event.accept()
                     return
         super().keyPressEvent(event)
+
+    def _handle_snippet_expansion(self):
+        line, index = self.getCursorPosition()
+        text_line = self.text(line)[:index]
+        word_match = re.search(r"([a-zA-Z_]\w*)$", text_line)
+        if not word_match:
+            return False
+        
+        keyword = word_match.group(1)
+        start_index = index - len(keyword)
+
+        snippets = {
+            "for": "for i in range(len()):\n    ",
+            "def": "def function_name():\n    pass",
+            "class": "class ClassName:\n    def __init__(self):\n        pass",
+            "if": "if condition:\n    ",
+            "while": "while condition:\n    ",
+            "try": "try:\n    \nexcept Exception as e:\n    print(e)",
+            "html5": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n    <meta charset=\"UTF-8\">\n    <title>Document</title>\n</head>\n<body>\n    \n</body>\n</html>"
+        }
+
+        if keyword in snippets:
+            self.setSelection(line, start_index, line, index)
+            self.removeSelectedText()
+            self.insert(snippets[keyword])
+            return True
+        return False
+
+    def mousePressEvent(self, event):
+        if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.button() == Qt.MouseButton.LeftButton:
+            point = event.position().toPoint()
+            scintilla_pos = self._sci("SCI_POSITIONFROMPOINT", 2022, point.x(), point.y())
+            if scintilla_pos >= 0:
+                self._sci("SCI_ADDSELECTION", 2573, scintilla_pos, scintilla_pos)
+                event.accept()
+                return
+        super().mousePressEvent(event)
 
     def _handle_pair_typing(self, ch):
         if self.hasSelectedText():
@@ -380,13 +475,22 @@ class AnoterraEditor(QsciScintilla):
         width = self.tabWidth()
         current = self.indentation(line)
         base = self.indentation(line - 1)
+        
+        is_html_tag_open = (
+            language.key in ("html", "xml")
+            and previous.endswith(">")
+            and not previous.endswith("/>")
+            and not previous.strip().startswith("<!")
+            and not previous.strip().startswith("</")
+        )
 
         opens = (language.colon_indent and previous.endswith(":")) or \
-                (language.brace_indent and previous.endswith(("{", "(", "[")))
+                (language.brace_indent and (previous.endswith(("{", "(", "[")) or is_html_tag_open))
+                
         if opens:
             self.setIndentation(line, base + width)
             rest = self.text(line).strip()
-            if rest[:1] in _CLOSERS:
+            if rest[:1] in _CLOSERS or (language.key in ("html", "xml") and rest.startswith("</")):
                 caret_pos = self._sci("SCI_GETLINEINDENTPOSITION", 2128, line)
                 self._sci("SCI_GOTOPOS", 2025, caret_pos)
                 _, caret_index = self.getCursorPosition()
@@ -394,6 +498,7 @@ class AnoterraEditor(QsciScintilla):
                 self.setIndentation(line + 1, base)
             self._sci("SCI_GOTOPOS", 2025, self._sci("SCI_GETLINEINDENTPOSITION", 2128, line))
             return
+            
         if language.key == "python" and re.match(r"^\s*(return|pass|break|continue|raise)\b", previous) \
                 and not previous.endswith("\\") and current > 0:
             self.setIndentation(line, max(0, current - width))
@@ -565,6 +670,34 @@ class AnoterraEditor(QsciScintilla):
 
     def clear_bookmarks(self):
         self.markerDeleteAll(MARKER_BOOKMARK)
+        
+    def toggle_breakpoint(self, line=None):
+        if line is None:
+            line, _ = self.getCursorPosition()
+        if self.markersAtLine(line) & (1 << MARKER_BREAKPOINT):
+            self.markerDelete(line, MARKER_BREAKPOINT)
+        else:
+            self.markerAdd(line, MARKER_BREAKPOINT)
+
+    def breakpoint_lines(self):
+        found, line = [], 0
+        while True:
+            line = self.markerFindNext(line, 1 << MARKER_BREAKPOINT)
+            if line < 0:
+                return found
+            found.append(line)
+            line += 1
+
+    def clear_breakpoints(self):
+        self.markerDeleteAll(MARKER_BREAKPOINT)
+
+    def set_debug_line(self, line=None):
+        """Highlight the line where the debugger is paused (``None`` removes the highlight)."""
+        self.markerDeleteAll(MARKER_DEBUG_ARROW)
+        self.markerDeleteAll(MARKER_DEBUG_LINE)
+        if line is not None and 0 <= line < self.lines():
+            self.markerAdd(line, MARKER_DEBUG_ARROW)
+            self.markerAdd(line, MARKER_DEBUG_LINE)
 
     def set_problems(self, problems):
         self.problems = list(problems or [])
